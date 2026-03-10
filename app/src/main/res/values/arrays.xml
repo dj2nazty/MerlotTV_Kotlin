@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="refresh_intervals">
+        <item>Every 6 hours</item>
+        <item>Every 12 hours</item>
+        <item>Every 24 hours</item>
+        <item>Every 48 hours</item>
+        <item>Manual only</item>
+    </string-array>
+    <string-array name="refresh_interval_values">
+        <item>6</item>
+        <item>12</item>
+        <item>24</item>
+        <item>48</item>
+        <item>0</item>
+    </string-array>
+
+    <string-array name="themes">
+        <item>Dark</item>
+        <item>Light</item>
+        <item>System</item>
+    </string-array>
+    <string-array name="theme_values">
+        <item>dark</item>
+        <item>light</item>
+        <item>system</item>
+    </string-array>
+
+    <string-array name="audio_languages">
+        <item>English</item>
+        <item>Spanish</item>
+        <item>French</item>
+        <item>German</item>
+        <item>Italian</item>
+        <item>Portuguese</item>
+        <item>Arabic</item>
+    </string-array>
+    <string-array name="audio_language_codes">
+        <item>en</item>
+        <item>es</item>
+        <item>fr</item>
+        <item>de</item>
+        <item>it</item>
+        <item>pt</item>
+        <item>ar</item>
+    </string-array>
+</resources>

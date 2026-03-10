@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_main"
+    app:startDestination="@id/homeFragment">
+
+    <!-- ═══ HOME ════════════════════════════════════════════════════════════ -->
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="com.merlottv.app.presentation.main.HomeFragment"
+        android:label="Home"
+        tools:layout="@layout/fragment_home">
+
+        <action
+            android:id="@+id/action_home_to_iptv_channels"
+            app:destination="@id/iptvChannelsFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left" />
+
+        <action
+            android:id="@+id/action_home_to_guide"
+            app:destination="@id/guideFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left" />
+
+        <action
+            android:id="@+id/action_home_to_vod_browse"
+            app:destination="@id/vodBrowseFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left" />
+
+        <action
+            android:id="@+id/action_home_to_vod_detail"
+            app:destination="@id/vodDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left" />
+
+        <action
+            android:id="@+id/action_home_to_checker"
+            app:destination="@id/checkerFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left" />
+
+        <action
+            android:id="@+id/action_home_to_settings"
+            app:destination="@id/settingsFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left" />
+
+        <action
+            android:id="@+id/action_home_to_search"
+            app:destination="@id/searchFragment" />
+    </fragment>
+
+    <!-- ═══ IPTV CHANNELS ════════════════════════════════════════════════ -->
+    <fragment
+        android:id="@+id/iptvChannelsFragment"
+        android:name="com.merlottv.app.presentation.iptv.channels.ChannelsFragment"
+        android:label="Live TV"
+        tools:layout="@layout/fragment_channels">
+        <argument
+            android:name="channel"
+            app:argType="com.merlottv.app.domain.model.Channel"
+            app:nullable="true"
+            android:defaultValue="@null" />
+    </fragment>
+
+    <!-- ═══ TV GUIDE ════════════════════════════════════════════════════ -->
+    <fragment
+        android:id="@+id/guideFragment"
+        android:name="com.merlottv.app.presentation.guide.GuideFragment"
+        android:label="TV Guide"
+        tools:layout="@layout/fragment_guide" />
+
+    <!-- ═══ VOD BROWSE ══════════════════════════════════════════════════ -->
+    <fragment
+        android:id="@+id/vodBrowseFragment"
+        android:name="com.merlottv.app.presentation.vod.browse.VodBrowseFragment"
+        android:label="Movies &amp; Series"
+        tools:layout="@layout/fragment_vod_browse">
+        <action
+            android:id="@+id/action_vod_browse_to_detail"
+            app:destination="@id/vodDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left" />
+    </fragment>
+
+    <!-- ═══ VOD DETAIL ══════════════════════════════════════════════════ -->
+    <fragment
+        android:id="@+id/vodDetailFragment"
+        android:name="com.merlottv.app.presentation.vod.detail.VodDetailFragment"
+        android:label="Detail"
+        tools:layout="@layout/fragment_vod_detail">
+        <argument
+            android:name="vodItem"
+            app:argType="com.merlottv.app.domain.model.VodItem" />
+    </fragment>
+
+    <!-- ═══ CHANNEL CHECKER ═════════════════════════════════════════════ -->
+    <fragment
+        android:id="@+id/checkerFragment"
+        android:name="com.merlottv.app.presentation.checker.CheckerFragment"
+        android:label="Channel Checker"
+        tools:layout="@layout/fragment_checker" />
+
+    <!-- ═══ SETTINGS ════════════════════════════════════════════════════ -->
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.merlottv.app.presentation.settings.SettingsFragment"
+        android:label="Settings" />
+
+    <!-- ═══ SEARCH ══════════════════════════════════════════════════════ -->
+    <fragment
+        android:id="@+id/searchFragment"
+        android:name="com.merlottv.app.presentation.common.SearchFragment"
+        android:label="Search"
+        tools:layout="@layout/fragment_search">
+        <action
+            android:id="@+id/action_search_to_vod_detail"
+            app:destination="@id/vodDetailFragment" />
+    </fragment>
+
+</navigation>

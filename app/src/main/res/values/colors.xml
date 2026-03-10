@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand -->
+    <color name="merlot_primary">#722F37</color>       <!-- deep Merlot red -->
+    <color name="merlot_primary_dark">#4A1E24</color>
+    <color name="merlot_accent">#C0392B</color>        <!-- bright red accent -->
+    <color name="merlot_gold">#C9A84C</color>          <!-- luxury gold for highlights -->
+
+    <!-- Background -->
+    <color name="background_dark">#0D0D0D</color>
+    <color name="background_card">#1A1A1A</color>
+    <color name="background_surface">#222222</color>
+    <color name="background_overlay">#99000000</color>
+
+    <!-- Text -->
+    <color name="text_primary">#FFFFFFFF</color>
+    <color name="text_secondary">#AAFFFFFF</color>
+    <color name="text_hint">#66FFFFFF</color>
+
+    <!-- Status indicators (Channel Checker) -->
+    <color name="status_online">#27AE60</color>
+    <color name="status_offline">#E74C3C</color>
+    <color name="status_timeout">#F39C12</color>
+    <color name="status_pending">#95A5A6</color>
+
+    <!-- Focused / selected state -->
+    <color name="focus_highlight">#722F37</color>
+    <color name="focus_text">#FFFFFFFF</color>
+</resources>

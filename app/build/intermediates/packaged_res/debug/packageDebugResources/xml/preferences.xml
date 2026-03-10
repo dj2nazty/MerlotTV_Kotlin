@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- ── Playlists ──────────────────────────────────────────── -->
+    <PreferenceCategory android:title="@string/settings_playlists">
+        <Preference
+            android:key="pref_playlists"
+            android:title="Manage M3U Sources"
+            android:summary="Add, remove and refresh playlist URLs"
+            android:fragment="com.merlottv.app.presentation.settings.PlaylistSettingsFragment" />
+        <ListPreference
+            android:key="m3u_interval"
+            android:title="Auto-refresh interval"
+            android:entries="@array/refresh_intervals"
+            android:entryValues="@array/refresh_interval_values"
+            android:defaultValue="24" />
+        <Preference
+            android:key="pref_refresh_all"
+            android:title="@string/settings_refresh_all" />
+    </PreferenceCategory>
+
+    <!-- ── TV Guide ───────────────────────────────────────────── -->
+    <PreferenceCategory android:title="@string/settings_epg">
+        <Preference
+            android:key="pref_epg"
+            android:title="Manage EPG Sources"
+            android:summary="Add XMLTV EPG URLs for TV Guide data"
+            android:fragment="com.merlottv.app.presentation.settings.EpgSettingsFragment" />
+        <ListPreference
+            android:key="epg_interval"
+            android:title="EPG refresh interval"
+            android:entries="@array/refresh_intervals"
+            android:entryValues="@array/refresh_interval_values"
+            android:defaultValue="12" />
+        <SeekBarPreference
+            android:key="epg_days"
+            android:title="Days ahead to cache"
+            android:defaultValue="3"
+            android:min="1"
+            android:max="7" />
+    </PreferenceCategory>
+
+    <!-- ── VOD / Addons ───────────────────────────────────────── -->
+    <PreferenceCategory android:title="@string/settings_addons">
+        <Preference
+            android:key="pref_addons"
+            android:title="Manage Stremio Addons"
+            android:summary="Install addons to unlock more VOD streams"
+            android:fragment="com.merlottv.app.presentation.settings.AddonSettingsFragment" />
+    </PreferenceCategory>
+
+    <!-- ── Playback ───────────────────────────────────────────── -->
+    <PreferenceCategory android:title="@string/settings_playback">
+        <EditTextPreference
+            android:key="user_agent"
+            android:title="Default User-Agent"
+            android:defaultValue="MerlotTV/2.0"
+            android:summary="Sent with stream requests" />
+        <SwitchPreference
+            android:key="hw_decoding"
+            android:title="Hardware Decoding"
+            android:defaultValue="true"
+            android:summary="Use GPU for video decoding (recommended)" />
+        <SeekBarPreference
+            android:key="buffer_seconds"
+            android:title="Buffer size (seconds)"
+            android:defaultValue="30"
+            android:min="5"
+            android:max="120" />
+        <SwitchPreference
+            android:key="subtitles"
+            android:title="Enable Subtitles"
+            android:defaultValue="true" />
+        <ListPreference
+            android:key="audio_lang"
+            android:title="Preferred Audio Language"
+            android:entries="@array/audio_languages"
+            android:entryValues="@array/audio_language_codes"
+            android:defaultValue="en" />
+    </PreferenceCategory>
+
+    <!-- ── Parental Controls ──────────────────────────────────── -->
+    <PreferenceCategory android:title="@string/settings_parental">
+        <SwitchPreference
+            android:key="parental_control"
+            android:title="Enable Parental Controls"
+            android:defaultValue="false" />
+        <EditTextPreference
+            android:key="parental_pin"
+            android:title="PIN"
+            android:inputType="numberPassword"
+            android:dependency="parental_control" />
+    </PreferenceCategory>
+
+    <!-- ── Appearance ─────────────────────────────────────────── -->
+    <PreferenceCategory android:title="@string/settings_appearance">
+        <ListPreference
+            android:key="theme"
+            android:title="Theme"
+            android:entries="@array/themes"
+            android:entryValues="@array/theme_values"
+            android:defaultValue="dark" />
+    </PreferenceCategory>
+
+    <!-- ── Storage ────────────────────────────────────────────── -->
+    <PreferenceCategory android:title="Storage">
+        <Preference
+            android:key="pref_clear_cache"
+            android:title="@string/settings_clear_cache"
+            android:summary="Remove cached EPG, logos and artwork" />
+    </PreferenceCategory>
+
+    <!-- ── About ─────────────────────────────────────────────── -->
+    <PreferenceCategory android:title="@string/settings_about">
+        <Preference
+            android:key="version"
+            android:title="@string/settings_version"
+            android:summary="2.0.0" />
+    </PreferenceCategory>
+
+</PreferenceScreen>
