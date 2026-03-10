@@ -1,0 +1,5 @@
+com.merlottv.app.test.app-jetified-core-1.6.1-0 C:\Users\Dj2nazty\.gradle\caches\8.11.1\transforms\b4b9b3a1d20a057fd669df4e5c4f31b1\transformed\jetified-core-1.6.1\res
+com.merlottv.app.test.app-androidTest-1 C:\Users\Dj2nazty\AndroidStudioProjects\MerlotTV_Kotlin\MerlotTV\app\build\generated\res\resValues\androidTest\debug
+com.merlottv.app.test.app-mergeDebugAndroidTestResources-2 C:\Users\Dj2nazty\AndroidStudioProjects\MerlotTV_Kotlin\MerlotTV\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\merged.dir
+com.merlottv.app.test.app-mergeDebugAndroidTestResources-3 C:\Users\Dj2nazty\AndroidStudioProjects\MerlotTV_Kotlin\MerlotTV\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\stripped.dir
+com.merlottv.app.test.app-debugAndroidTest-4 C:\Users\Dj2nazty\AndroidStudioProjects\MerlotTV_Kotlin\MerlotTV\app\build\intermediates\merged_res\debugAndroidTest\mergeDebugAndroidTestResources
