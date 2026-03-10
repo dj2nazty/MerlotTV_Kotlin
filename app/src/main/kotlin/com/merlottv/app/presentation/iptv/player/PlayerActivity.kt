@@ -18,6 +18,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import com.merlottv.app.databinding.ActivityPlayerBinding
 import com.merlottv.app.domain.model.Channel
 import dagger.hilt.android.AndroidEntryPoint
@@ -33,7 +34,7 @@ class PlayerActivity : FragmentActivity() {
     private var player: ExoPlayer? = null
     private var hideControlsJob: kotlinx.coroutines.Job? = null
 
-    // Retry tracking — avoids infinite crash loops
+    // Retry tracking
     private var retryCount = 0
     private val maxRetries = 3
 
@@ -42,6 +43,10 @@ class PlayerActivity : FragmentActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         binding = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // ── Key fix #1: hide the built-in ExoPlayer buffering spinner ──
+        binding.playerView.setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+        binding.playerView.useController = false
 
         @Suppress("DEPRECATION")
         val channel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -54,12 +59,24 @@ class PlayerActivity : FragmentActivity() {
         observeState()
     }
 
-    private fun initPlayer(channel: Channel) {
-        // Always fully release before creating a new instance to free GPU/codec memory
-        releasePlayer()
-
+    /**
+     * Called once. Creates the player and attaches it to the view.
+     * Subsequent channel changes call [switchChannel] which reuses the same instance.
+     */
+    private fun createPlayerIfNeeded() {
+        if (player != null) return
         player = viewModel.buildPlayer(this)
         binding.playerView.player = player
+        player?.addListener(playerListener)
+    }
+
+    /**
+     * ── Key fix #2: reuse the player, just swap the MediaItem ──
+     * This avoids the decoder teardown/init cycle that causes the 2-3 second black screen.
+     */
+    private fun switchChannel(channel: Channel) {
+        createPlayerIfNeeded()
+        retryCount = 0
 
         val mediaItem = MediaItem.Builder()
             .setUri(channel.url)
@@ -75,15 +92,16 @@ class PlayerActivity : FragmentActivity() {
             .build()
 
         player?.run {
+            // Swap the item and re-prepare — no listener removal/re-add needed
             setMediaItem(mediaItem)
             prepare()
             playWhenReady = true
-            addListener(playerListener)
         }
 
         binding.tvChannelName.text = channel.name
-        binding.playerView.useController = false
-        retryCount = 0 // reset retries for new channel
+        binding.tvError.visibility = View.GONE
+        // ── Key fix #3: hide our own progress bar — don't show anything while loading ──
+        binding.progressBar.visibility = View.GONE
         showControls()
     }
 
@@ -96,26 +114,22 @@ class PlayerActivity : FragmentActivity() {
             release()
         }
         player = null
-        // Detach from view so the SurfaceView is freed immediately
         binding.playerView.player = null
     }
 
     private fun retryPlayback() {
         if (retryCount >= maxRetries) {
+            binding.progressBar.visibility = View.GONE
             binding.tvError.visibility = View.VISIBLE
-            binding.tvError.text = "Playback failed after $maxRetries retries.\nPress ← → to switch channel."
+            binding.tvError.text = "Playback failed after $maxRetries retries.\nPress \u2190 \u2192 to switch channel."
             return
         }
         retryCount++
         binding.tvError.visibility = View.GONE
-        binding.progressBar.visibility = View.VISIBLE
 
         lifecycleScope.launch {
-            delay(1_500L * retryCount) // back-off: 1.5s, 3s, 4.5s
-            viewModel.currentChannel.value?.let { channel ->
-                releasePlayer()
-                initPlayer(channel)
-            }
+            delay(1_500L * retryCount) // 1.5s, 3s, 4.5s back-off
+            viewModel.currentChannel.value?.let { switchChannel(it) }
         }
     }
 
@@ -162,20 +176,19 @@ class PlayerActivity : FragmentActivity() {
                 launch {
                     viewModel.currentChannel.collect { channel ->
                         channel ?: return@collect
-                        retryCount = 0
-                        releasePlayer()
-                        initPlayer(channel)
+                        switchChannel(channel)
                     }
                 }
                 launch {
                     viewModel.playerState.collect { state ->
-                        binding.progressBar.visibility =
-                            if (state == PlayerState.Buffering) View.VISIBLE else View.GONE
+                        // Only show error state; never show the buffering spinner
                         binding.tvError.visibility =
                             if (state is PlayerState.Error) View.VISIBLE else View.GONE
                         if (state is PlayerState.Error) {
                             binding.tvError.text = state.message
                         }
+                        // Keep progressBar hidden always
+                        binding.progressBar.visibility = View.GONE
                     }
                 }
             }
@@ -186,34 +199,24 @@ class PlayerActivity : FragmentActivity() {
 
         override fun onPlaybackStateChanged(state: Int) {
             viewModel.onPlaybackStateChanged(state)
-            // Clear progress spinner once buffering finishes
             if (state == Player.STATE_READY) {
                 retryCount = 0
+                binding.tvError.visibility = View.GONE
             }
         }
 
         override fun onPlayerError(error: PlaybackException) {
             viewModel.onPlayerError(error.message ?: "Unknown error")
-
             when (error.errorCode) {
-                // Codec / decoder ran out of memory — release everything and retry
                 PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
                 PlaybackException.ERROR_CODE_DECODING_FAILED,
                 PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES,
-                PlaybackException.ERROR_CODE_DECODING_FORMAT_NOT_SUPPORTED -> {
-                    retryPlayback()
-                }
-                // Network hiccup — simple retry after short delay
+                PlaybackException.ERROR_CODE_DECODING_FORMAT_NOT_SUPPORTED,
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
                 PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
-                PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND -> {
-                    retryPlayback()
-                }
-                // Anything else — show error but still attempt once
-                else -> {
-                    if (retryCount == 0) retryPlayback()
-                }
+                PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND -> retryPlayback()
+                else -> if (retryCount == 0) retryPlayback()
             }
         }
     }
@@ -221,13 +224,12 @@ class PlayerActivity : FragmentActivity() {
     override fun onStart() {
         super.onStart()
         if (player == null) {
-            viewModel.currentChannel.value?.let { initPlayer(it) }
+            viewModel.currentChannel.value?.let { switchChannel(it) }
         }
     }
 
     override fun onStop() {
         super.onStop()
-        // Free codec memory when app goes to background — critical on low-RAM devices
         releasePlayer()
     }
 
