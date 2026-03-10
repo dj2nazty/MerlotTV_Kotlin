@@ -14,7 +14,6 @@ import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.util.UnstableApi;
-import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
 import com.merlottv.app.databinding.ActivityPlayerBinding;
 import com.merlottv.app.domain.model.Channel;
@@ -53,16 +52,12 @@ public final class PlayerActivity extends androidx.fragment.app.FragmentActivity
     android.os.Bundle savedInstanceState) {
     }
     
-    /**
-     * Called once. Creates the player and attaches it to the view.
-     * Subsequent channel changes call [switchChannel] which reuses the same instance.
-     */
     private final void createPlayerIfNeeded() {
     }
     
     /**
-     * ── Key fix #2: reuse the player, just swap the MediaItem ──
-     * This avoids the decoder teardown/init cycle that causes the 2-3 second black screen.
+     * Reuse the same player instance — just swap the MediaItem.
+     * This avoids the decoder teardown/reinit that causes the loading screen.
      */
     private final void switchChannel(com.merlottv.app.domain.model.Channel channel) {
     }

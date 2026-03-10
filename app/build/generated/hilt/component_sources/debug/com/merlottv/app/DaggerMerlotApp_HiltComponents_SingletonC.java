@@ -473,30 +473,30 @@ public final class DaggerMerlotApp_HiltComponents_SingletonC {
 
     @IdentifierNameString
     private static final class LazyClassKeyProvider {
-      static String com_merlottv_app_presentation_iptv_player_PlayerViewModel = "com.merlottv.app.presentation.iptv.player.PlayerViewModel";
-
-      static String com_merlottv_app_presentation_settings_SettingsViewModel = "com.merlottv.app.presentation.settings.SettingsViewModel";
-
-      static String com_merlottv_app_presentation_main_HomeViewModel = "com.merlottv.app.presentation.main.HomeViewModel";
+      static String com_merlottv_app_presentation_guide_GuideViewModel = "com.merlottv.app.presentation.guide.GuideViewModel";
 
       static String com_merlottv_app_presentation_checker_CheckerViewModel = "com.merlottv.app.presentation.checker.CheckerViewModel";
 
-      static String com_merlottv_app_presentation_guide_GuideViewModel = "com.merlottv.app.presentation.guide.GuideViewModel";
+      static String com_merlottv_app_presentation_main_HomeViewModel = "com.merlottv.app.presentation.main.HomeViewModel";
+
+      static String com_merlottv_app_presentation_settings_SettingsViewModel = "com.merlottv.app.presentation.settings.SettingsViewModel";
+
+      static String com_merlottv_app_presentation_iptv_player_PlayerViewModel = "com.merlottv.app.presentation.iptv.player.PlayerViewModel";
 
       @KeepFieldType
-      PlayerViewModel com_merlottv_app_presentation_iptv_player_PlayerViewModel2;
-
-      @KeepFieldType
-      SettingsViewModel com_merlottv_app_presentation_settings_SettingsViewModel2;
-
-      @KeepFieldType
-      HomeViewModel com_merlottv_app_presentation_main_HomeViewModel2;
+      GuideViewModel com_merlottv_app_presentation_guide_GuideViewModel2;
 
       @KeepFieldType
       CheckerViewModel com_merlottv_app_presentation_checker_CheckerViewModel2;
 
       @KeepFieldType
-      GuideViewModel com_merlottv_app_presentation_guide_GuideViewModel2;
+      HomeViewModel com_merlottv_app_presentation_main_HomeViewModel2;
+
+      @KeepFieldType
+      SettingsViewModel com_merlottv_app_presentation_settings_SettingsViewModel2;
+
+      @KeepFieldType
+      PlayerViewModel com_merlottv_app_presentation_iptv_player_PlayerViewModel2;
     }
   }
 
@@ -551,19 +551,19 @@ public final class DaggerMerlotApp_HiltComponents_SingletonC {
     private static final class LazyClassKeyProvider {
       static String com_merlottv_app_presentation_iptv_player_PlayerViewModel = "com.merlottv.app.presentation.iptv.player.PlayerViewModel";
 
-      static String com_merlottv_app_presentation_main_HomeViewModel = "com.merlottv.app.presentation.main.HomeViewModel";
+      static String com_merlottv_app_presentation_guide_GuideViewModel = "com.merlottv.app.presentation.guide.GuideViewModel";
 
       static String com_merlottv_app_presentation_settings_SettingsViewModel = "com.merlottv.app.presentation.settings.SettingsViewModel";
 
       static String com_merlottv_app_presentation_checker_CheckerViewModel = "com.merlottv.app.presentation.checker.CheckerViewModel";
 
-      static String com_merlottv_app_presentation_guide_GuideViewModel = "com.merlottv.app.presentation.guide.GuideViewModel";
+      static String com_merlottv_app_presentation_main_HomeViewModel = "com.merlottv.app.presentation.main.HomeViewModel";
 
       @KeepFieldType
       PlayerViewModel com_merlottv_app_presentation_iptv_player_PlayerViewModel2;
 
       @KeepFieldType
-      HomeViewModel com_merlottv_app_presentation_main_HomeViewModel2;
+      GuideViewModel com_merlottv_app_presentation_guide_GuideViewModel2;
 
       @KeepFieldType
       SettingsViewModel com_merlottv_app_presentation_settings_SettingsViewModel2;
@@ -572,7 +572,7 @@ public final class DaggerMerlotApp_HiltComponents_SingletonC {
       CheckerViewModel com_merlottv_app_presentation_checker_CheckerViewModel2;
 
       @KeepFieldType
-      GuideViewModel com_merlottv_app_presentation_guide_GuideViewModel2;
+      HomeViewModel com_merlottv_app_presentation_main_HomeViewModel2;
     }
 
     private static final class SwitchingProvider<T> implements Provider<T> {
