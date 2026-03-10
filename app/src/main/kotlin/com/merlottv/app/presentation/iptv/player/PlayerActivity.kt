@@ -17,7 +17,6 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.merlottv.app.databinding.ActivityPlayerBinding
 import com.merlottv.app.domain.model.Channel
@@ -31,10 +30,9 @@ class PlayerActivity : FragmentActivity() {
 
     private lateinit var binding: ActivityPlayerBinding
     private val viewModel: PlayerViewModel by viewModels()
-    private var player: ExoPlayer? = null
+    private var player: androidx.media3.exoplayer.ExoPlayer? = null
     private var hideControlsJob: kotlinx.coroutines.Job? = null
 
-    // Retry tracking
     private var retryCount = 0
     private val maxRetries = 3
 
@@ -44,7 +42,7 @@ class PlayerActivity : FragmentActivity() {
         binding = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // ── Key fix #1: hide the built-in ExoPlayer buffering spinner ──
+        // Hide the built-in ExoPlayer buffering spinner
         binding.playerView.setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
         binding.playerView.useController = false
 
@@ -59,10 +57,6 @@ class PlayerActivity : FragmentActivity() {
         observeState()
     }
 
-    /**
-     * Called once. Creates the player and attaches it to the view.
-     * Subsequent channel changes call [switchChannel] which reuses the same instance.
-     */
     private fun createPlayerIfNeeded() {
         if (player != null) return
         player = viewModel.buildPlayer(this)
@@ -71,8 +65,8 @@ class PlayerActivity : FragmentActivity() {
     }
 
     /**
-     * ── Key fix #2: reuse the player, just swap the MediaItem ──
-     * This avoids the decoder teardown/init cycle that causes the 2-3 second black screen.
+     * Reuse the same player instance — just swap the MediaItem.
+     * This avoids the decoder teardown/reinit that causes the loading screen.
      */
     private fun switchChannel(channel: Channel) {
         createPlayerIfNeeded()
@@ -92,7 +86,6 @@ class PlayerActivity : FragmentActivity() {
             .build()
 
         player?.run {
-            // Swap the item and re-prepare — no listener removal/re-add needed
             setMediaItem(mediaItem)
             prepare()
             playWhenReady = true
@@ -100,7 +93,6 @@ class PlayerActivity : FragmentActivity() {
 
         binding.tvChannelName.text = channel.name
         binding.tvError.visibility = View.GONE
-        // ── Key fix #3: hide our own progress bar — don't show anything while loading ──
         binding.progressBar.visibility = View.GONE
         showControls()
     }
@@ -121,14 +113,14 @@ class PlayerActivity : FragmentActivity() {
         if (retryCount >= maxRetries) {
             binding.progressBar.visibility = View.GONE
             binding.tvError.visibility = View.VISIBLE
-            binding.tvError.text = "Playback failed after $maxRetries retries.\nPress \u2190 \u2192 to switch channel."
+            binding.tvError.text = "Playback failed. Press \u2190 \u2192 to switch channel."
             return
         }
         retryCount++
         binding.tvError.visibility = View.GONE
 
         lifecycleScope.launch {
-            delay(1_500L * retryCount) // 1.5s, 3s, 4.5s back-off
+            delay(1_500L * retryCount)
             viewModel.currentChannel.value?.let { switchChannel(it) }
         }
     }
@@ -181,13 +173,11 @@ class PlayerActivity : FragmentActivity() {
                 }
                 launch {
                     viewModel.playerState.collect { state ->
-                        // Only show error state; never show the buffering spinner
                         binding.tvError.visibility =
                             if (state is PlayerState.Error) View.VISIBLE else View.GONE
                         if (state is PlayerState.Error) {
                             binding.tvError.text = state.message
                         }
-                        // Keep progressBar hidden always
                         binding.progressBar.visibility = View.GONE
                     }
                 }
@@ -207,17 +197,8 @@ class PlayerActivity : FragmentActivity() {
 
         override fun onPlayerError(error: PlaybackException) {
             viewModel.onPlayerError(error.message ?: "Unknown error")
-            when (error.errorCode) {
-                PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
-                PlaybackException.ERROR_CODE_DECODING_FAILED,
-                PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES,
-                PlaybackException.ERROR_CODE_DECODING_FORMAT_NOT_SUPPORTED,
-                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
-                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
-                PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
-                PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND -> retryPlayback()
-                else -> if (retryCount == 0) retryPlayback()
-            }
+            // Retry on any error — no specific error codes needed
+            retryPlayback()
         }
     }
 
