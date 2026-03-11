@@ -1129,6 +1129,16 @@ video{width:100%;height:100%;display:block;background:#000}
             </div>
             <div class="vd-people" id="vdPeople"></div>
             <div class="vd-cast-scroll" id="vdCast"></div>
+            <!-- Watch progress bar (shown if previously watched) -->
+            <div id="vdProgressWrap" style="display:none;width:100%;max-width:400px;margin-top:16px">
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,.5);margin-bottom:4px">
+                <span id="vdProgressTime"></span>
+                <span id="vdProgressPct"></span>
+              </div>
+              <div style="width:100%;height:4px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden">
+                <div id="vdProgressFill" style="height:100%;background:var(--accent);border-radius:2px;width:0%"></div>
+              </div>
+            </div>
             <div class="vd-actions" style="margin-top:18px">
               <button class="vd-play-btn" id="vdPlayBtn" tabindex="0">
                 <span style="font-size:18px">▶</span> PLAY
@@ -3141,7 +3151,13 @@ function startStreamVOD(url){
   console.log('[Player] fmt=' + fmt + ' fname=' + fname);
 
   vid.oncanplay     = function(){
-    hideLoading(); vid.play().catch(function(){});
+    hideLoading();
+    // Resume from saved position if available
+    if(window._vodResumeTime && window._vodResumeTime > 0){
+      vid.currentTime = window._vodResumeTime;
+      window._vodResumeTime = 0;
+    }
+    vid.play().catch(function(){});
     // Signal stream is ready for cinematic transition
     window._vodStreamReady = true;
     var lbl = document.getElementById('ploLabel');
@@ -4267,15 +4283,59 @@ async function openVodDetail(id, type, name){
     +'<span class="vd-skeleton" style="width:88%;height:13px;display:block;margin-bottom:6px"></span>'
     +'<span class="vd-skeleton" style="width:70%;height:13px;display:block"></span>';
 
+  // Clean up any previous restart button
+  var oldRestart = document.getElementById('vdRestartBtn');
+  if(oldRestart) oldRestart.remove();
+
   // Wire play button — for series, hide it (episodes panel takes over)
+  var progressWrap = document.getElementById('vdProgressWrap');
   if(type === 'series'){
     playBtn.style.display = 'none';
+    if(progressWrap) progressWrap.style.display = 'none';
   } else {
     playBtn.style.display = '';
-    playBtn.onclick = function(){
-      closeVodDetail();
-      openVODItem(id, type, name);
-    };
+
+    // Check for saved watch progress
+    var wp = _getWatchProgress(id, type);
+    if(wp){
+      // Show progress bar
+      if(progressWrap) progressWrap.style.display = 'block';
+      var wpPct = Math.round((wp.currentTime / wp.duration) * 100);
+      document.getElementById('vdProgressFill').style.width = wpPct + '%';
+      document.getElementById('vdProgressTime').textContent = fmtTime(wp.currentTime) + ' / ' + fmtTime(wp.duration);
+      document.getElementById('vdProgressPct').textContent = wpPct + '% watched';
+
+      // Change play button to "Continue"
+      playBtn.innerHTML = '<span style="font-size:18px">▶</span> CONTINUE';
+      playBtn.onclick = function(){
+        closeVodDetail();
+        window._vodResumeTime = wp.currentTime;
+        openVODItem(id, type, name);
+      };
+
+      // Add "Restart" button after play button
+      var restartBtn = document.createElement('button');
+      restartBtn.className = 'vd-fav-btn';
+      restartBtn.style.cssText = 'font-size:12px;width:auto;padding:0 18px;height:46px;border-radius:8px;color:rgba(255,255,255,.7)';
+      restartBtn.innerHTML = '↺ Restart';
+      restartBtn.id = 'vdRestartBtn';
+      restartBtn.tabIndex = 0;
+      restartBtn.onclick = function(){
+        closeVodDetail();
+        window._vodResumeTime = 0;
+        _clearWatchProgress(id, type);
+        openVODItem(id, type, name);
+      };
+      playBtn.parentNode.insertBefore(restartBtn, playBtn.nextSibling);
+    } else {
+      // No progress — normal play button
+      if(progressWrap) progressWrap.style.display = 'none';
+      playBtn.innerHTML = '<span style="font-size:18px">▶</span> PLAY';
+      playBtn.onclick = function(){
+        closeVodDetail();
+        openVODItem(id, type, name);
+      };
+    }
   }
 
   // Fav button
@@ -4749,6 +4809,9 @@ function showVODControls(){
   // Start time update loop
   clearInterval(_vodTimeInterval);
   _vodTimeInterval = setInterval(vodUpdateTime, 500);
+  // Auto-save watch progress every 15 seconds
+  clearInterval(_vodProgressSaveInterval);
+  _vodProgressSaveInterval = setInterval(_saveWatchProgress, 15000);
 }
 
 function hideVODControls(){
@@ -4757,6 +4820,8 @@ function hideVODControls(){
   _vodControlsActive = false;
   clearInterval(_vodTimeInterval);
   _vodTimeInterval = null;
+  clearInterval(_vodProgressSaveInterval);
+  _vodProgressSaveInterval = null;
 }
 
 function vodUpdateTime(){
@@ -4782,7 +4847,7 @@ function vodPlayPause(){
   var vid = document.getElementById('vid');
   if(!vid) return;
   if(vid.paused){ vid.play().catch(function(){}); }
-  else { vid.pause(); }
+  else { vid.pause(); _saveWatchProgress(); }
   setTimeout(vodUpdateTime, 50);
 }
 
@@ -4831,6 +4896,7 @@ function vodToggleMute(){
 }
 
 function stopVOD(){
+  _saveWatchProgress(); // Save progress before destroying player
   destroyPlayers();
   hideVODControls();
   hideErr();
@@ -4845,6 +4911,56 @@ function stopVOD(){
 
 // Alias so error screen "← Pick Different Stream" also cleans up
 function vodClose(){ stopVOD(); }
+
+
+// ══════════════════════════════════════════
+//  WATCH PROGRESS TRACKING
+// ══════════════════════════════════════════
+var _vodProgressSaveInterval = null;
+
+function _loadAllWatchProgress(){
+  try{
+    var raw = localStorage.getItem('merlot_watch_progress');
+    return raw ? JSON.parse(raw) : {};
+  }catch(e){ return {}; }
+}
+
+function _getWatchProgress(id, type){
+  var progress = _loadAllWatchProgress();
+  var key = (type||'movie') + ':' + id;
+  return progress[key] || null;
+}
+
+function _saveWatchProgress(){
+  var vid = document.getElementById('vid');
+  if(!vid || !vid.duration || vid.duration < 60) return; // skip very short content
+  var id = window._lastVODId;
+  var type = window._lastVODType;
+  if(!id) return;
+  var key = (type||'movie') + ':' + id;
+  var progress = _loadAllWatchProgress();
+  var pct = vid.currentTime / vid.duration;
+  // Only save if watched more than 30 seconds
+  if(vid.currentTime < 30) return;
+  if(pct > 0.95){
+    // Finished watching — remove progress entry
+    delete progress[key];
+  } else {
+    progress[key] = {
+      currentTime: Math.floor(vid.currentTime),
+      duration: Math.floor(vid.duration),
+      updatedAt: Date.now()
+    };
+  }
+  try{ localStorage.setItem('merlot_watch_progress', JSON.stringify(progress)); }catch(e){}
+}
+
+function _clearWatchProgress(id, type){
+  var progress = _loadAllWatchProgress();
+  var key = (type||'movie') + ':' + id;
+  delete progress[key];
+  try{ localStorage.setItem('merlot_watch_progress', JSON.stringify(progress)); }catch(e){}
+}
 
 
 // ══════════════════════════════════════════
@@ -5332,7 +5448,18 @@ function exitAppFullscreen(){
 
   // ── Back button ───────────────────────────────────────────
   function goBack(){
-    // 1. Exit app fullscreen mode (sidebar/topbar/nowbar hidden)
+    // 0. VOD playing in fullscreen — save progress, stop, return to detail screen
+    if(window._appFullscreen && _vodControlsActive){
+      if(typeof _saveWatchProgress === 'function') _saveWatchProgress();
+      stopVOD();
+      if(typeof exitAppFullscreen === 'function') exitAppFullscreen();
+      // Re-open VOD detail screen for the movie we were watching
+      if(window._lastVODId && window._lastVODType){
+        openVodDetail(window._lastVODId, window._lastVODType, window._vodDetailName || '');
+      }
+      return;
+    }
+    // 1. Exit app fullscreen mode (sidebar/topbar/nowbar hidden) — for Live TV
     if(window._appFullscreen){
       if(typeof exitAppFullscreen === 'function') exitAppFullscreen();
       return;
@@ -5419,6 +5546,11 @@ function exitAppFullscreen(){
     if(isLeft)  move('left');
     if(isRight) move('right');
     if(isOK){
+      // VOD playing in fullscreen — toggle play/pause with center button
+      if(window._appFullscreen && _vodControlsActive){
+        vodPlayPause();
+        return;
+      }
       var isChItem = cur && cur.classList.contains('ch-item');
       activate();
       // Enter app fullscreen on OK for channel items (Live TV)
