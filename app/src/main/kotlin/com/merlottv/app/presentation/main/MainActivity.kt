@@ -132,8 +132,10 @@ class MainActivity : FragmentActivity() {
         // Cache
         settings.cacheMode = WebSettings.LOAD_DEFAULT
 
-        // Hardware acceleration on the WebView itself
-        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        // Use NONE layer type — HARDWARE uses too much GPU memory and causes
+        // renderer OOM crashes on low-memory TV devices and emulators.
+        // Hardware acceleration is still enabled at the application level via manifest.
+        webView.setLayerType(View.LAYER_TYPE_NONE, null)
 
         // Focus for D-pad
         webView.isFocusable = true
@@ -144,15 +146,18 @@ class MainActivity : FragmentActivity() {
         webView.addJavascriptInterface(AndroidBridge(), "AndroidBridge")
 
         // ── WebViewRenderProcessClient (API 29+) ─────────────────────────
-        // Catches renderer crashes gracefully instead of killing the app.
+        // Monitor renderer health — do NOT terminate on unresponsive!
+        // TV devices and emulators are slow; killing the renderer causes crash loops.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             webView.webViewRenderProcessClient = object : WebViewRenderProcessClient() {
                 override fun onRenderProcessUnresponsive(
                     view: WebView,
                     renderer: WebViewRenderProcess?
                 ) {
-                    Log.w(TAG, "WebView renderer unresponsive — attempting to terminate")
-                    renderer?.terminate()
+                    // Just log — do NOT terminate. The renderer may recover on its own.
+                    // Previously we called renderer?.terminate() which caused crash loops
+                    // on low-memory devices and emulators.
+                    Log.w(TAG, "WebView renderer unresponsive — waiting for recovery")
                 }
 
                 override fun onRenderProcessResponsive(

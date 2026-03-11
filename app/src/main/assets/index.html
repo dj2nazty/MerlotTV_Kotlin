@@ -1450,7 +1450,6 @@ video::-webkit-media-controls-start-playback-button{display:none!important}
 
 <div class="toasts" id="tc"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js" async></script>
 <script>
 // ═══════════════════════════════════════════════════
 //  TV GUIDE
@@ -1762,30 +1761,50 @@ function parseXMLTVDate(s){
 
 function parseXMLTV(xml){
   epgData = {};
-  var doc;
-  try{ doc = new DOMParser().parseFromString(xml,'text/xml'); } catch(e){ return 0; }
+  // Use regex-based parsing instead of DOMParser to save memory.
+  // DOMParser creates a full DOM tree (~3-5x the XML size in memory),
+  // which causes OOM crashes on TV devices with limited RAM.
 
   // Map channel id → display names
   var idToNames = {};
-  doc.querySelectorAll('channel').forEach(function(c){
-    var id = c.getAttribute('id'); if(!id) return;
-    idToNames[id] = [];
-    c.querySelectorAll('display-name').forEach(function(d){ if(d.textContent) idToNames[id].push(d.textContent.trim()); });
-  });
+  var chRe = /<channel\s+id="([^"]*)"[^>]*>([\s\S]*?)<\/channel>/gi;
+  var dnRe = /<display-name[^>]*>([^<]*)<\/display-name>/gi;
+  var chMatch;
+  while((chMatch = chRe.exec(xml)) !== null){
+    var chId = chMatch[1]; if(!chId) continue;
+    idToNames[chId] = [];
+    var inner = chMatch[2];
+    dnRe.lastIndex = 0;
+    var dnMatch;
+    while((dnMatch = dnRe.exec(inner)) !== null){
+      if(dnMatch[1]) idToNames[chId].push(dnMatch[1].trim());
+    }
+  }
 
-  // Parse programmes
-  doc.querySelectorAll('programme').forEach(function(p){
-    var cid = p.getAttribute('channel'); if(!cid) return;
-    var start = parseXMLTVDate(p.getAttribute('start'));
-    var stop  = parseXMLTVDate(p.getAttribute('stop'));
-    if(!start || !stop) return;
-    var titleEl = p.querySelector('title');
-    var descEl  = p.querySelector('desc');
-    var title = titleEl ? titleEl.textContent : 'Unknown';
-    var desc  = descEl  ? descEl.textContent  : '';
-    if(!epgData[cid]) epgData[cid] = [];
-    epgData[cid].push({start:start, stop:stop, title:title, desc:desc});
-  });
+  // Parse programmes — regex avoids DOM overhead
+  var pRe = /<programme\s+([^>]*)>([\s\S]*?)<\/programme>/gi;
+  var pMatch;
+  while((pMatch = pRe.exec(xml)) !== null){
+    var attrs = pMatch[1];
+    var body  = pMatch[2];
+    var cidM = attrs.match(/channel="([^"]*)"/);
+    if(!cidM) continue;
+    var pcid = cidM[1];
+    var startM = attrs.match(/start="([^"]*)"/);
+    var stopM  = attrs.match(/stop="([^"]*)"/);
+    var start = parseXMLTVDate(startM ? startM[1] : '');
+    var stop  = parseXMLTVDate(stopM ? stopM[1] : '');
+    if(!start || !stop) continue;
+    var titleM = body.match(/<title[^>]*>([^<]*)<\/title>/i);
+    var descM  = body.match(/<desc[^>]*>([^<]*)<\/desc>/i);
+    var title = titleM ? titleM[1] : 'Unknown';
+    var desc  = descM  ? descM[1]  : '';
+    if(!epgData[pcid]) epgData[pcid] = [];
+    epgData[pcid].push({start:start, stop:stop, title:title, desc:desc});
+  }
+
+  // Free the raw XML string ASAP
+  xml = null;
 
   // Build lookup aliases: channel id → display names & normalized forms
   for(var id in idToNames){
@@ -1827,6 +1846,8 @@ async function _tryFetch(url, timeoutMs){
 }
 
 async function loadEPG(){
+  // Don't load EPG if no channels are loaded — saves massive memory
+  if(!ch || ch.length === 0){ console.log('[EPG] Skipped — no channels loaded'); return; }
   epgData = {}; epgLoaded = false;
 
   // Build full source list: user-saved first, then defaults
@@ -1950,8 +1971,37 @@ function escJs(s){ return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"
 setInterval(()=>{ if(document.getElementById('guideDrawer').classList.contains('open')) renderGuide(); },60000);
 
 </script>
-<script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.js" async></script>
 <script>
+// ═══════════════════════════════════════════
+//  LAZY SCRIPT LOADER (saves memory on startup)
+// ═══════════════════════════════════════════
+var _hlsLoaded = false, _hlsLoading = false, _hlsCallbacks = [];
+var _mpegtsLoaded = false, _mpegtsLoading = false, _mpegtsCallbacks = [];
+
+function _loadHls(cb){
+  if(_hlsLoaded){ cb(); return; }
+  _hlsCallbacks.push(cb);
+  if(_hlsLoading) return;
+  _hlsLoading = true;
+  var s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js';
+  s.onload = function(){ _hlsLoaded=true; _hlsLoading=false; _hlsCallbacks.forEach(function(f){f();}); _hlsCallbacks=[]; };
+  s.onerror = function(){ _hlsLoading=false; _hlsCallbacks.forEach(function(f){f();}); _hlsCallbacks=[]; };
+  document.head.appendChild(s);
+}
+
+function _loadMpegts(cb){
+  if(_mpegtsLoaded){ cb(); return; }
+  _mpegtsCallbacks.push(cb);
+  if(_mpegtsLoading) return;
+  _mpegtsLoading = true;
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.js';
+  s.onload = function(){ _mpegtsLoaded=true; _mpegtsLoading=false; _mpegtsCallbacks.forEach(function(f){f();}); _mpegtsCallbacks=[]; };
+  s.onerror = function(){ _mpegtsLoading=false; _mpegtsCallbacks.forEach(function(f){f();}); _mpegtsCallbacks=[]; };
+  document.head.appendChild(s);
+}
+
 // ═══════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════
@@ -2084,7 +2134,7 @@ function loadPlaylist(txt){
   ch=out;
   _buildChIndexMap(); // Build O(1) index lookup for virtual scroll
   buildGuideCats();
-  setTimeout(loadEPG, 3000); // auto-load EPG after channels are ready (deferred to not compete with stream)
+  setTimeout(loadEPG, 10000); // auto-load EPG 10s after channels (deferred to avoid OOM during initial load)
   document.getElementById('idleOv').querySelector('.idle-s').textContent='Select a channel from the list to start watching';
   doFilter();
   // Auto-resume last watched channel ONLY on first boot, not on every playlist reload
@@ -2222,26 +2272,37 @@ function startStream(url){
 
   document.getElementById('nowFmt').textContent=isHLS?'HLS':isMPEGTS?'MPEG-TS':'HTTP';
 
-  if(isMPEGTS && typeof mpegts !== 'undefined' && mpegts.isSupported()){
-    // MPEG-TS / Xtream numeric streams — use mpegts.js
-    useMpegts(url, vid, true);
-  } else if(isHLS && typeof Hls !== 'undefined' && Hls.isSupported()){
-    useHls(url, vid);
-  } else if(isHLS && vid.canPlayType('application/vnd.apple.mpegurl')){
-    vid.src=url; vid.load();
-    vid.addEventListener('loadedmetadata',()=>{hideLoading();vid.play().catch(()=>{});},{once:true});
-    vid.addEventListener('error',()=>{hideLoading();showErr(url,'Stream failed');},{once:true});
-  } else if(typeof mpegts !== 'undefined' && mpegts.isSupported()){
-    // Unknown format — try mpegts.js as last resort before native
-    useMpegts(url, vid, false);
-  } else {
-    vid.src=url; vid.load();
-    vid.addEventListener('canplay',()=>hideLoading(),{once:true});
-    vid.addEventListener('error',()=>{hideLoading();showErr(url,'Unsupported stream format');},{once:true});
-  }
-
   vid.onwaiting=()=>showLoading('Buffering...');
   vid.onplaying=()=>{hideLoading();};
+
+  // Helper to actually start once libs are loaded
+  function _doStart(){
+    if(isMPEGTS && typeof mpegts !== 'undefined' && mpegts.isSupported()){
+      useMpegts(url, vid, true);
+    } else if(isHLS && typeof Hls !== 'undefined' && Hls.isSupported()){
+      useHls(url, vid);
+    } else if(isHLS && vid.canPlayType('application/vnd.apple.mpegurl')){
+      vid.src=url; vid.load();
+      vid.addEventListener('loadedmetadata',()=>{hideLoading();vid.play().catch(()=>{});},{once:true});
+      vid.addEventListener('error',()=>{hideLoading();showErr(url,'Stream failed');},{once:true});
+    } else if(typeof mpegts !== 'undefined' && mpegts.isSupported()){
+      useMpegts(url, vid, false);
+    } else {
+      vid.src=url; vid.load();
+      vid.addEventListener('canplay',()=>hideLoading(),{once:true});
+      vid.addEventListener('error',()=>{hideLoading();showErr(url,'Unsupported stream format');},{once:true});
+    }
+  }
+
+  // Lazy-load the appropriate library, then start
+  if(isMPEGTS){
+    _loadMpegts(function(){ _doStart(); });
+  } else if(isHLS){
+    _loadHls(function(){ _doStart(); });
+  } else {
+    // Try mpegts first for unknown formats
+    _loadMpegts(function(){ _doStart(); });
+  }
 }
 
 function useHls(url,vid){
@@ -3255,19 +3316,30 @@ function startStreamVOD(url){
     if(errOv) errOv.classList.add('on');
   };
 
-  if(isHLS && typeof Hls !== 'undefined' && Hls.isSupported()){
-    useHls(url, vid);
-  } else if(isTS && typeof mpegts !== 'undefined' && mpegts.isSupported()){
-    useMpegts(url, vid, true);
+  function _doStartVOD(){
+    if(isHLS && typeof Hls !== 'undefined' && Hls.isSupported()){
+      useHls(url, vid);
+    } else if(isTS && typeof mpegts !== 'undefined' && mpegts.isSupported()){
+      useMpegts(url, vid, true);
+    } else {
+      vid.src = url;
+      vid.load();
+      // Fallback: if canplay hasn't fired after 5s, try play() anyway
+      setTimeout(function(){
+        if(vid.src && vid.readyState >= 2 && vid.paused){
+          vid.play().catch(function(){});
+        }
+      }, 5000);
+    }
+  }
+
+  // Lazy-load the appropriate library, then start
+  if(isHLS){
+    _loadHls(function(){ _doStartVOD(); });
+  } else if(isTS){
+    _loadMpegts(function(){ _doStartVOD(); });
   } else {
-    vid.src = url;
-    vid.load();
-    // Fallback: if canplay hasn't fired after 5s, try play() anyway
-    setTimeout(function(){
-      if(vid.src && vid.readyState >= 2 && vid.paused){
-        vid.play().catch(function(){});
-      }
-    }, 5000);
+    _doStartVOD(); // Native playback, no library needed
   }
 }
 
@@ -5148,7 +5220,7 @@ function renderFavorites(){
 var _updateApkUrl = '';
 var GITHUB_REPO = 'dj2nazty/MerlotTV_Kotlin';
 
-var APP_VERSION = '2.9.1'; // Updated at build time — must match build.gradle.kts
+var APP_VERSION = '2.9.2'; // Updated at build time — must match build.gradle.kts
 
 function checkForUpdates(){
   var currentName = APP_VERSION;
