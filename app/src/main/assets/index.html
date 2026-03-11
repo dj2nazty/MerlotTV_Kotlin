@@ -334,6 +334,7 @@ video::-webkit-media-controls-start-playback-button{display:none!important}
 .st-btn.tv-focus{outline:2px solid var(--accent);outline-offset:2px}
 .st-btn.sec.tv-focus{border-color:var(--accent);color:var(--accent)}
 .toggle-switch.tv-focus{outline:2px solid var(--accent);outline-offset:3px;border-radius:24px}
+.si.tv-focus,select.gs.tv-focus{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
 .toggle-switch{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0}
 .toggle-switch input{opacity:0;width:0;height:0}
 .toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--border);transition:.3s;border-radius:24px}
@@ -1956,6 +1957,7 @@ setInterval(()=>{ if(document.getElementById('guideDrawer').classList.contains('
 // ═══════════════════════════════════════════
 let ch=[],fl=[],currentIdx=-1,hlsInst=null,mpegInst=null,currentUrl='';
 let lastXtreamUrl='', lastXtreamUser='', lastXtreamPass='';
+var _initialLoadDone = false; // Only auto-resume channel on very first playlist load
 const PROXIES=[
   'https://corsproxy.io/?url=',
   'https://api.allorigins.win/raw?url=',
@@ -2085,8 +2087,11 @@ function loadPlaylist(txt){
   setTimeout(loadEPG, 3000); // auto-load EPG after channels are ready (deferred to not compete with stream)
   document.getElementById('idleOv').querySelector('.idle-s').textContent='Select a channel from the list to start watching';
   doFilter();
-  // Auto-resume last watched channel after playlist loads
-  setTimeout(resumeLastChannel, 200);
+  // Auto-resume last watched channel ONLY on first boot, not on every playlist reload
+  if(!_initialLoadDone){
+    _initialLoadDone = true;
+    setTimeout(resumeLastChannel, 200);
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -2275,8 +2280,8 @@ function useMpegts(url, vid, isTS){
     var ptype = isTS ? 'mpegts' : 'flv';
     mpegInst = mpegts.createPlayer(
       {type:ptype, url:url, isLive:true, cors:true, withCredentials:false},
-      {enableWorker:true, liveBufferLatencyChasing:true, liveBufferLatencyMaxLatency:4,
-       liveBufferLatencyMinRemain:1, fixAudioTimestampGap:true}
+      {enableWorker:true, liveBufferLatencyChasing:true, liveBufferLatencyMaxLatency:12,
+       liveBufferLatencyMinRemain:4, fixAudioTimestampGap:true}
     );
     mpegInst.attachMediaElement(vid);
     mpegInst.load();
@@ -2970,9 +2975,9 @@ function resumeLastChannel(){
     if(vodDetailEl && vodDetailEl.style.display !== 'none' && vodDetailEl.style.display !== '') return;
     var posterOv = document.getElementById('posterLoadOverlay');
     if(posterOv && posterOv.style.display !== 'none') return;
-    // Don't auto-play if user is on VOD tab
+    // Don't auto-play if user is NOT on the Live TV (player) tab
     var activePanel = document.querySelector('.main-panel.act');
-    if(activePanel && activePanel.id === 'panel-vod') return;
+    if(activePanel && activePanel.id !== 'panel-player') return;
     var enabled = localStorage.getItem('merlot_resume_last');
     if(enabled === 'false') return; // disabled by user (default=enabled)
     var data = localStorage.getItem('merlot_last_channel');
@@ -5143,7 +5148,7 @@ function renderFavorites(){
 var _updateApkUrl = '';
 var GITHUB_REPO = 'dj2nazty/MerlotTV_Kotlin';
 
-var APP_VERSION = '2.9.0'; // Updated at build time — must match build.gradle.kts
+var APP_VERSION = '2.9.1'; // Updated at build time — must match build.gradle.kts
 
 function checkForUpdates(){
   var currentName = APP_VERSION;
@@ -5373,7 +5378,8 @@ function exitAppFullscreen(){
     '.vod-card','.btn','.ibtn','.stream-opt','.guide-ch-item',
     '.vd-play-btn','.vd-fav-btn','.vd-season-btn','.vd-ep-item','.vd-ep-play',
     '.stream-item','.vd-close-btn','.home-card',
-    '.st-tab','.st-btn','.toggle-switch'
+    '.st-tab','.st-btn','.toggle-switch',
+    '.si','select.gs'
   ].join(',');
 
   var CSS_FOCUS = 'tv-focus';
@@ -5621,9 +5627,9 @@ function exitAppFullscreen(){
       if(m && m.style.display!=='none'){ m.style.display='none'; closed=true; }
     });
     if(closed) return;
-    // 6. Return to Live TV tab
-    var active = document.querySelector('.main-panel.act');
-    if(active && active.id !== 'panel-player' && typeof switchTab==='function') switchTab('player');
+    // 6. On Live TV tab with nothing else open — do nothing (already at top level)
+    // Previously this forced switchTab('player') from ANY tab, causing Settings/VOD/Guide
+    // to crash back to Live TV. Now we only stay put — user navigates via top tabs.
   }
 
   // ── Double-Left press tracking for sidebar toggle ────────
@@ -5695,6 +5701,12 @@ function exitAppFullscreen(){
       // Don't let channel clicks kill active VOD playback
       if(isChItem && (_vodControlsActive || window._vodIsLoading)){
         e.preventDefault();
+        return;
+      }
+      // For inputs/selects — give native focus so keyboard/dropdown opens
+      if(cur && (cur.tagName === 'INPUT' || cur.tagName === 'SELECT' || cur.tagName === 'TEXTAREA')){
+        cur.focus();
+        if(cur.tagName === 'INPUT' || cur.tagName === 'TEXTAREA') cur.click();
         return;
       }
       activate();

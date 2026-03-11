@@ -15,8 +15,8 @@ android {
         applicationId  = "com.merlottv.app"
         minSdk         = 21          // Android 5 — covers all modern Android TV hardware
         targetSdk      = 35
-        versionCode    = 11
-        versionName    = "2.9.0"
+        versionCode    = 12
+        versionName    = "2.9.1"
 
         // Room schema export
         kapt {
