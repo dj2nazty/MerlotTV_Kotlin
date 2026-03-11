@@ -5143,13 +5143,15 @@ function renderFavorites(){
 var _updateApkUrl = '';
 var GITHUB_REPO = 'dj2nazty/MerlotTV_Kotlin';
 
+var APP_VERSION = '2.9.0'; // Updated at build time — must match build.gradle.kts
+
 function checkForUpdates(){
-  // Only check on Android (has AndroidBridge)
-  if(!window.AndroidBridge || !window.AndroidBridge.getVersionCode) return;
-  var currentCode = 0;
-  try{ currentCode = window.AndroidBridge.getVersionCode(); }catch(e){ return; }
-  var currentName = '';
-  try{ currentName = window.AndroidBridge.getVersion(); }catch(e){}
+  var currentName = APP_VERSION;
+  try{
+    if(window.AndroidBridge && window.AndroidBridge.getVersion){
+      currentName = window.AndroidBridge.getVersion();
+    }
+  }catch(e){}
 
   fetch('https://api.github.com/repos/' + GITHUB_REPO + '/releases/latest')
     .then(function(r){ return r.json(); })
@@ -5225,7 +5227,7 @@ function manualCheckForUpdates(){
   statusEl.textContent = 'Checking for updates...';
   btnEl.textContent = 'Checking...';
 
-  var currentName = '0.0.0';
+  var currentName = APP_VERSION;
   try{
     if(window.AndroidBridge && window.AndroidBridge.getVersion){
       currentName = window.AndroidBridge.getVersion();
@@ -5278,7 +5280,7 @@ function manualCheckForUpdates(){
 function _showSettingsVersion(){
   var el = document.getElementById('settingsVersionInfo');
   if(!el) return;
-  var ver = '2.5.0'; // fallback
+  var ver = APP_VERSION;
   try{
     if(window.AndroidBridge && window.AndroidBridge.getVersion){
       ver = window.AndroidBridge.getVersion();

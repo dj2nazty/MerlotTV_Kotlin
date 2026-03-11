@@ -15,8 +15,8 @@ android {
         applicationId  = "com.merlottv.app"
         minSdk         = 21          // Android 5 — covers all modern Android TV hardware
         targetSdk      = 35
-        versionCode    = 10
-        versionName    = "2.8.0"
+        versionCode    = 11
+        versionName    = "2.9.0"
 
         // Room schema export
         kapt {
@@ -24,14 +24,25 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile     = file("../merlottv-release.jks")
+            storePassword = "merlottv2024"
+            keyAlias      = "merlottv"
+            keyPassword   = "merlottv2024"
+        }
+    }
+
     buildTypes {
         debug {
-            applicationIdSuffix = ".debug"
-            isDebuggable        = true
+            // No applicationIdSuffix — same package name as release for seamless updates
+            isDebuggable = true
+            signingConfig = signingConfigs.getByName("release")
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
