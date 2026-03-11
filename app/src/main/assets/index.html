@@ -327,6 +327,13 @@ video::-webkit-media-controls-start-playback-button{display:none!important}
 .st-btn.danger:hover{background:rgba(255,71,87,.3);transform:none}
 .st-btn.sec{background:var(--surface);color:var(--text);border:1px solid var(--border)}
 .st-btn.sec:hover{border-color:var(--accent);color:var(--accent)}
+.st-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px}
+.st-tab{padding:8px 16px;border-radius:8px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:background .2s,color .2s,border-color .2s}
+.st-tab:hover,.st-tab.tv-focus{border-color:var(--accent);color:var(--accent)}
+.st-tab.act{background:var(--accent);color:#000;border-color:var(--accent)}
+.st-btn.tv-focus{outline:2px solid var(--accent);outline-offset:2px}
+.st-btn.sec.tv-focus{border-color:var(--accent);color:var(--accent)}
+.toggle-switch.tv-focus{outline:2px solid var(--accent);outline-offset:3px;border-radius:24px}
 .toggle-switch{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0}
 .toggle-switch input{opacity:0;width:0;height:0}
 .toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--border);transition:.3s;border-radius:24px}
@@ -1233,6 +1240,23 @@ video::-webkit-media-controls-start-playback-button{display:none!important}
                       <span class="toggle-slider"></span>
                     </label>
                   </div>
+                </div>
+              </div>
+
+              <div class="st-section" style="margin-top:14px">
+                <div class="st-head">&#128246; About &amp; Updates</div>
+                <div class="st-body" style="display:flex;flex-direction:column;gap:12px">
+                  <div style="display:flex;align-items:center;gap:14px">
+                    <div style="width:48px;height:48px;border-radius:12px;overflow:hidden;flex-shrink:0;box-shadow:0 4px 16px rgba(192,41,79,.3)"><svg width="48" height="48" viewBox="0 0 512 512"><use href="#ML"/></svg></div>
+                    <div style="flex:1">
+                      <div style="font-size:14px;font-weight:800;color:var(--text);letter-spacing:0.5px">Merlot TV</div>
+                      <div id="settingsVersionInfo" style="font-size:11px;color:var(--muted);margin-top:2px;font-family:'JetBrains Mono',monospace">Version loading...</div>
+                    </div>
+                  </div>
+                  <div style="display:flex;gap:8px">
+                    <button class="st-btn" onclick="manualCheckForUpdates()" id="settingsUpdateBtn">Check for Updates</button>
+                  </div>
+                  <div id="settingsUpdateStatus" style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;min-height:16px;display:none;padding:8px;background:var(--bg);border-radius:6px;border:1px solid var(--border)"></div>
                 </div>
               </div>
             </div>
@@ -4561,7 +4585,7 @@ function refreshEpgList(){
 function reloadEPG(){ toast('Reloading EPG...','i'); loadEPG(); }
 
 var _origRefreshSettings=refreshSettingsUI;
-function refreshSettingsUI(){ _origRefreshSettings(); refreshEpgList(); refreshAddonList(); }
+function refreshSettingsUI(){ _origRefreshSettings(); refreshEpgList(); refreshAddonList(); _showSettingsVersion(); }
 
 // (addons already initialized above)
 // Pre-load Torbox key
@@ -5173,7 +5197,79 @@ function closeUpdateModal(){
   document.getElementById('updateModal').style.display = 'none';
 }
 
-// Check for updates 5 seconds after page load
+// Manual update check from Settings
+function manualCheckForUpdates(){
+  var statusEl = document.getElementById('settingsUpdateStatus');
+  var btnEl = document.getElementById('settingsUpdateBtn');
+  statusEl.style.display = 'block';
+  statusEl.style.color = 'var(--accent)';
+  statusEl.textContent = 'Checking for updates...';
+  btnEl.textContent = 'Checking...';
+
+  var currentName = '0.0.0';
+  try{
+    if(window.AndroidBridge && window.AndroidBridge.getVersion){
+      currentName = window.AndroidBridge.getVersion();
+    }
+  }catch(e){}
+
+  fetch('https://api.github.com/repos/' + GITHUB_REPO + '/releases/latest')
+    .then(function(r){ return r.json(); })
+    .then(function(rel){
+      btnEl.textContent = 'Check for Updates';
+      if(!rel || !rel.tag_name){
+        statusEl.style.color = 'var(--muted)';
+        statusEl.textContent = 'Could not check — no releases found.';
+        return;
+      }
+      var tagVersion = rel.tag_name.replace(/^v/i, '');
+      if(_isNewerVersion(tagVersion, currentName)){
+        // Find APK asset
+        var apkAsset = null;
+        if(rel.assets && rel.assets.length){
+          for(var i=0; i<rel.assets.length; i++){
+            if(rel.assets[i].name && rel.assets[i].name.endsWith('.apk')){
+              apkAsset = rel.assets[i]; break;
+            }
+          }
+        }
+        if(apkAsset) _updateApkUrl = apkAsset.browser_download_url;
+        statusEl.style.color = 'var(--success)';
+        statusEl.innerHTML = 'Update available: <b>v' + tagVersion + '</b>';
+        // Show the update modal
+        var modal = document.getElementById('updateModal');
+        document.getElementById('updateVersion').textContent = 'v' + currentName + ' \u2192 v' + tagVersion;
+        document.getElementById('updateNotes').textContent = rel.body || 'Bug fixes and improvements.';
+        document.getElementById('updateProgress').style.display = 'none';
+        document.getElementById('updateInstallBtn').style.display = '';
+        modal.style.display = 'flex';
+      } else {
+        statusEl.style.color = 'var(--success)';
+        statusEl.textContent = 'You are on the latest version (v' + currentName + ')';
+      }
+    })
+    .catch(function(e){
+      btnEl.textContent = 'Check for Updates';
+      statusEl.style.color = 'var(--danger)';
+      statusEl.textContent = 'Update check failed — no internet or rate limited.';
+    });
+}
+
+// Display current version in Settings
+function _showSettingsVersion(){
+  var el = document.getElementById('settingsVersionInfo');
+  if(!el) return;
+  var ver = '2.5.0'; // fallback
+  try{
+    if(window.AndroidBridge && window.AndroidBridge.getVersion){
+      ver = window.AndroidBridge.getVersion();
+    }
+  }catch(e){}
+  el.textContent = 'Version ' + ver;
+}
+setTimeout(_showSettingsVersion, 2000);
+
+// Check for updates 15 seconds after page load
 setTimeout(checkForUpdates, 15000);
 </script>
 
@@ -5255,7 +5351,8 @@ function exitAppFullscreen(){
     '.tb-tab','.ch-item','.vod-type-tab','.cat-src-chip','.genre-chip',
     '.vod-card','.btn','.ibtn','.stream-opt','.guide-ch-item',
     '.vd-play-btn','.vd-fav-btn','.vd-season-btn','.vd-ep-item','.vd-ep-play',
-    '.stream-item','.vd-close-btn','.home-card'
+    '.stream-item','.vd-close-btn','.home-card',
+    '.st-tab','.st-btn','.toggle-switch'
   ].join(',');
 
   var CSS_FOCUS = 'tv-focus';
