@@ -165,7 +165,13 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-he
 /* ── Player area ── */
 .player-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 .pw{position:relative;background:#000;flex:1}
-video{width:100%;height:100%;display:block;background:#000}
+video{width:100%;height:100%;display:block;background:#000;object-fit:contain}
+video::-webkit-media-controls{display:none!important}
+video::-webkit-media-controls-enclosure{display:none!important}
+video::-webkit-media-controls-panel{display:none!important}
+video::-webkit-media-controls-play-button{display:none!important}
+video::-webkit-media-controls-overlay-play-button{display:none!important}
+video::-webkit-media-controls-start-playback-button{display:none!important}
 .vov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;transition:opacity .3s}
 .vov.hidden{opacity:0;pointer-events:none}
 .vov.idle{background:#000}
@@ -178,8 +184,8 @@ video{width:100%;height:100%;display:block;background:#000}
 .idle-art{margin-bottom:8px}
 .idle-t{font-size:18px;font-weight:800;margin-bottom:2px}
 .idle-s{font-size:12px;color:var(--muted);text-align:center;max-width:280px;line-height:1.5}
-.spinner-big{width:48px;height:48px;border:3px solid rgba(0,229,255,.15);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
-.vov.loading{background:rgba(0,0,0,.8)}
+.spinner-big{width:36px;height:36px;border:3px solid rgba(192,41,79,.2);border-top-color:#C0294F;border-radius:50%;animation:spin .8s linear infinite}
+.vov.loading{background:#000}
 .vov p{font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace}
 .eov{position:absolute;inset:0;background:rgba(0,0,0,.92);display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:28px;text-align:center}
 .eov.on{display:flex}
@@ -830,13 +836,18 @@ video{width:100%;height:100%;display:block;background:#000}
       <!-- PLAYER -->
       <div class="main-panel act" id="panel-player">
         <div class="pw" id="pw">
-          <video id="vid" playsinline></video>
+          <video id="vid" playsinline autoplay></video>
           <div class="vov idle" id="idleOv">
             <div style="width:80px;height:80px;border-radius:18px;overflow:hidden;margin-bottom:8px;box-shadow:0 8px 36px rgba(192,41,79,.35)"><svg width="80" height="80" viewBox="0 0 512 512"><use href="#ML"/></svg></div>
             <div class="idle-t" style="font-size:18px;font-weight:900;letter-spacing:2px;color:#FFD4A0">MERLOT TV</div>
             <div class="idle-s">Select a channel from the list to start watching</div>
           </div>
-          <div class="vov hidden loading" id="loadOv"><div class="spinner-big"></div><p id="loadMsg">Connecting...</p></div>
+          <div class="vov hidden loading" id="loadOv">
+            <div style="width:56px;height:56px;border-radius:14px;overflow:hidden;margin-bottom:10px;box-shadow:0 4px 20px rgba(192,41,79,.3)"><svg width="56" height="56" viewBox="0 0 512 512"><use href="#ML"/></svg></div>
+            <div style="font-size:14px;font-weight:800;letter-spacing:1.5px;color:rgba(255,255,255,.85);margin-bottom:12px">MERLOT TV</div>
+            <div class="spinner-big"></div>
+            <p id="loadMsg" style="margin-top:10px;font-size:11px;color:rgba(255,255,255,.4);font-family:'JetBrains Mono',monospace">Connecting...</p>
+          </div>
           <div class="eov" id="errOv">
             <div style="width:48px;height:48px;border-radius:12px;overflow:hidden;opacity:.6;margin-bottom:4px"><svg width="48" height="48" viewBox="0 0 512 512"><use href="#ML"/></svg></div>
             <div class="eov-title">Stream Failed</div>
@@ -2043,10 +2054,9 @@ function loadPlaylist(txt){
       }
     }
   }
-  if(!out.length){toast('No channels found','e');return;}
+  if(!out.length) return;
   ch=out;
   _buildChIndexMap(); // Build O(1) index lookup for virtual scroll
-  toast(`✓ ${ch.length} channels loaded`,'s');
   buildGuideCats();
   setTimeout(loadEPG, 3000); // auto-load EPG after channels are ready (deferred to not compete with stream)
   document.getElementById('idleOv').querySelector('.idle-s').textContent='Select a channel from the list to start watching';
@@ -2191,7 +2201,7 @@ function startStream(url){
   }
 
   vid.onwaiting=()=>showLoading('Buffering...');
-  vid.onplaying=()=>{hideLoading();toast('▶ '+ch[currentIdx]?.name,'s');};
+  vid.onplaying=()=>{hideLoading();};
 }
 
 function useHls(url,vid){
@@ -2200,11 +2210,16 @@ function useHls(url,vid){
   hlsInst=new Hls({
     enableWorker:true,
     lowLatencyMode:true,
-    backBufferLength:15,
-    maxBufferLength:15,
-    maxMaxBufferLength:30,
-    liveSyncDurationCount:3,
-    startFragPrefetch:true
+    backBufferLength:10,
+    maxBufferLength:10,
+    maxMaxBufferLength:20,
+    liveSyncDurationCount:2,
+    liveMaxLatencyDurationCount:5,
+    startFragPrefetch:true,
+    maxBufferHole:0.5,
+    nudgeMaxRetry:5,
+    startLevel:-1,
+    testBandwidth:false
   });
   hlsInst.attachMedia(vid);
   hlsInst.on(Hls.Events.MANIFEST_PARSED,()=>{hideLoading();vid.play().catch(()=>{});});
@@ -2262,7 +2277,7 @@ function destroyPlayers(){
   vid.pause();
   vid.oncanplay=null; vid.onloadeddata=null; vid.onloadedmetadata=null;
   vid.onwaiting=null; vid.onplaying=null; vid.onerror=null;
-  try{vid.removeAttribute('src'); vid.load();}catch(e){}
+  try{vid.removeAttribute('src');}catch(e){}
 }
 
 function retryStream(){if(currentUrl){hideErr();showLoading('Retrying...');startStream(currentUrl);}}
@@ -2936,14 +2951,12 @@ function resumeLastChannel(){
     }
     if(idx >= 0){
       playCh(idx);
-      toast('Resumed: ' + ch[idx].name, 's');
     }
   }catch(e){}
 }
 
 function toggleResumeLast(enabled){
   try{ localStorage.setItem('merlot_resume_last', enabled ? 'true' : 'false'); }catch(e){}
-  toast(enabled ? 'Resume last channel: ON' : 'Resume last channel: OFF', 's');
 }
 
 // ═══════════════════════════════════════
