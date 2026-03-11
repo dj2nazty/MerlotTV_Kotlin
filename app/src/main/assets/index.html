@@ -2167,15 +2167,8 @@ function startStream(url){
   const isMPEGTS = /\.ts($|\?)/i.test(url) || /output=ts/i.test(url)
                 || (/\/\d+$/.test(url) && !isHLS);  // Xtream /user/pass/12345 with no extension
 
-  // Only destroy players when switching between different player types
-  // HLS reuse is handled inside useHls()
-  if(isHLS && typeof Hls !== 'undefined' && Hls.isSupported()){
-    // Destroy mpegts if active, but keep hlsInst for reuse
-    if(mpegInst){try{mpegInst.unload();mpegInst.detachMediaElement();mpegInst.destroy();}catch(e){}mpegInst=null;}
-    vid.onwaiting=null;vid.onplaying=null;vid.onerror=null;
-  } else {
-    destroyPlayers();
-  }
+  // Always destroy players cleanly before starting new stream
+  destroyPlayers();
 
   document.getElementById('nowFmt').textContent=isHLS?'HLS':isMPEGTS?'MPEG-TS':'HTTP';
 
@@ -2202,16 +2195,18 @@ function startStream(url){
 }
 
 function useHls(url,vid){
-  // Reuse existing HLS instance if available — much faster channel switching
-  if(hlsInst){
-    try{
-      hlsInst.off(Hls.Events.MANIFEST_PARSED);
-      hlsInst.off(Hls.Events.ERROR);
-    }catch(e){}
-  } else {
-    hlsInst=new Hls({enableWorker:true,lowLatencyMode:true,backBufferLength:30,maxBufferLength:20,liveSyncDurationCount:3,maxMaxBufferLength:30});
-    hlsInst.attachMedia(vid);
-  }
+  // Always destroy and recreate — reusing causes buffer corruption on TV hardware
+  if(hlsInst){try{hlsInst.destroy();}catch(e){}hlsInst=null;}
+  hlsInst=new Hls({
+    enableWorker:true,
+    lowLatencyMode:true,
+    backBufferLength:15,
+    maxBufferLength:15,
+    maxMaxBufferLength:30,
+    liveSyncDurationCount:3,
+    startFragPrefetch:true
+  });
+  hlsInst.attachMedia(vid);
   hlsInst.on(Hls.Events.MANIFEST_PARSED,()=>{hideLoading();vid.play().catch(()=>{});});
   hlsInst.on(Hls.Events.ERROR,(e,data)=>{
     if(data.fatal){
@@ -2219,7 +2214,6 @@ function useHls(url,vid){
       if(data.type===Hls.ErrorTypes.NETWORK_ERROR){
         showErr(url,'Network error — stream offline or CORS blocked. Try another channel.');
       } else {
-        // Fatal non-network error — destroy and recreate
         try{hlsInst.destroy();}catch(e){}
         hlsInst=null;
         showErr(url,'Stream error: '+data.details);
@@ -4355,7 +4349,12 @@ async function openVodDetail(id, type, name){
   };
 
   el.style.display = 'block';
-  setTimeout(function(){ if(playBtn) playBtn.focus(); }, 100);
+  setTimeout(function(){
+    if(playBtn){
+      if(window._tvNav && window._tvNav.setFocus) window._tvNav.setFocus(playBtn);
+      else playBtn.focus();
+    }
+  }, 100);
 
   // Always fetch from Cinemeta directly — most reliable source, always has movie+series meta
   var CINEMETA = 'https://v3-cinemeta.strem.io';
