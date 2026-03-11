@@ -2,7 +2,9 @@ package com.merlottv.app.presentation.common
 
 import android.content.Context
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.view.ViewGroup
+import android.widget.ImageView
 import androidx.core.content.ContextCompat
 import androidx.leanback.widget.ImageCardView
 import androidx.leanback.widget.Presenter
@@ -28,24 +30,26 @@ class CardPresenter(private val context: Context) : Presenter() {
     }
 
     override fun onBindViewHolder(viewHolder: ViewHolder, item: Any?) {
-        val cardView = viewHolder.view as ImageCardView
+        val card = viewHolder.view as ImageCardView
         when (item) {
-            is Channel     -> bindChannel(cardView, item)
-            is VodItem     -> bindVodItem(cardView, item)
-            is SectionItem -> bindSectionItem(cardView, item)
+            is Channel     -> bindChannel(card, item)
+            is VodItem     -> bindVodItem(card, item)
+            is SectionItem -> bindSectionItem(card, item)
         }
     }
 
     override fun onUnbindViewHolder(viewHolder: ViewHolder) {
-        val cardView = viewHolder.view as ImageCardView
-        cardView.badgeImage = null
-        cardView.mainImage  = defaultBackground
+        val card = viewHolder.view as ImageCardView
+        card.badgeImage = null
+        card.mainImage = defaultBackground
     }
 
     private fun bindChannel(card: ImageCardView, channel: Channel) {
-        card.titleText   = channel.name
+        card.titleText = channel.name
         card.contentText = channel.group
+        // Set dimensions FIRST so Coil loads into the correct size
         card.setMainImageDimensions(CARD_WIDTH_CHANNEL, CARD_HEIGHT_CHANNEL)
+        card.mainImageView?.scaleType = ImageView.ScaleType.FIT_CENTER
         if (channel.logoUrl.isNotEmpty()) {
             card.mainImageView?.load(channel.logoUrl) {
                 crossfade(true)
@@ -59,14 +63,23 @@ class CardPresenter(private val context: Context) : Presenter() {
     }
 
     private fun bindVodItem(card: ImageCardView, item: VodItem) {
-        card.titleText   = item.name
-        card.contentText = "${item.year}  ★${item.imdbRating}"
+        card.titleText = item.name
+        // year is a String in the model, so just check isNotEmpty
+        val meta = buildList {
+            if (item.year.isNotEmpty()) add(item.year)
+            if (item.imdbRating.isNotEmpty() && item.imdbRating != "0") add("★ ${item.imdbRating}")
+        }.joinToString("  ")
+        card.contentText = meta
+
+        // Large portrait poster — matches HTML app style
         card.setMainImageDimensions(CARD_WIDTH_VOD, CARD_HEIGHT_VOD)
+        card.mainImageView?.scaleType = ImageView.ScaleType.CENTER_CROP
         if (item.posterUrl.isNotEmpty()) {
             card.mainImageView?.load(item.posterUrl) {
                 crossfade(true)
                 placeholder(defaultBackground)
                 error(defaultBackground)
+                transformations(RoundedCornersTransformation(8f))
             }
         } else {
             card.mainImage = defaultBackground
@@ -74,17 +87,29 @@ class CardPresenter(private val context: Context) : Presenter() {
     }
 
     private fun bindSectionItem(card: ImageCardView, item: SectionItem) {
-        card.titleText   = item.label
+        card.titleText = item.label
         card.contentText = ""
-        card.setMainImageDimensions(CARD_WIDTH_CHANNEL, CARD_HEIGHT_CHANNEL)
-        card.mainImage = defaultBackground
+        card.setMainImageDimensions(CARD_WIDTH_SECTION, CARD_HEIGHT_SECTION)
+
+        val tileColor = when (item.id) {
+            SectionItem.ID_TV_GUIDE        -> 0xFF1A6B3A.toInt()
+            SectionItem.ID_CHANNEL_CHECKER -> 0xFF1A4A6B.toInt()
+            SectionItem.ID_SETTINGS        -> 0xFF3A2A6B.toInt()
+            else                           -> 0xFF722F37.toInt()
+        }
+        card.mainImage = GradientDrawable().apply {
+            setColor(tileColor)
+            cornerRadius = 12f
+        }
     }
 
     companion object {
-        private const val CARD_WIDTH_CHANNEL  = 176
-        private const val CARD_HEIGHT_CHANNEL = 100
-        private const val CARD_WIDTH_VOD      = 120
-        private const val CARD_HEIGHT_VOD     = 176
+        const val CARD_WIDTH_CHANNEL  = 200
+        const val CARD_HEIGHT_CHANNEL = 112
+        const val CARD_WIDTH_VOD      = 160
+        const val CARD_HEIGHT_VOD     = 240
+        const val CARD_WIDTH_SECTION  = 200
+        const val CARD_HEIGHT_SECTION = 112
     }
 }
 

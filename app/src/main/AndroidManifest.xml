@@ -1,31 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- Network -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-
-    <!-- Storage — needed for importing local M3U / EPG files -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"
-        tools:ignore="ScopedStorage" />
 
     <!-- Keep screen on during playback -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
-    <!-- TV hardware features -->
-    <uses-feature
-        android:name="android.hardware.touchscreen"
-        android:required="false" />
-    <uses-feature
-        android:name="android.software.leanback"
-        android:required="false" />
-    <uses-feature
-        android:name="android.hardware.microphone"
-        android:required="false" />
+    <!-- File picker for local M3U/EPG files -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+
+    <!-- Self-update: download and install APK from GitHub Releases -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!-- TV feature declarations -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.software.leanback" android:required="false" />
 
     <application
         android:name=".MerlotApp"
@@ -34,24 +27,21 @@
         android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="false"
+        android:supportsRtl="true"
         android:theme="@style/Theme.MerlotTV"
-        android:usesCleartextTraffic="true"
-        tools:targetApi="28">
+        android:usesCleartextTraffic="true">
 
-        <!-- ═══════════════════════════════════════════════════════
-             MAIN / HOME ACTIVITY
-             Single-activity architecture — Leanback BrowseSupportFragment
-             hosts the five sections via Navigation component
-        ═══════════════════════════════════════════════════════════ -->
+        <!-- Main Activity — fullscreen WebView -->
         <activity
             android:name=".presentation.main.MainActivity"
-            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode"
             android:exported="true"
             android:launchMode="singleTask"
             android:screenOrientation="landscape"
-            android:windowSoftInputMode="adjustNothing">
+            android:theme="@style/Theme.MerlotTV.Fullscreen"
+            android:windowSoftInputMode="adjustResize">
 
             <!-- Phone / tablet launcher -->
             <intent-filter>
@@ -59,64 +49,23 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Android TV / Leanback launcher -->
+            <!-- Android TV launcher -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <!-- ═══════════════════════════════════════════════════════
-             PLAYER ACTIVITY (full-screen, no UI chrome)
-        ═══════════════════════════════════════════════════════════ -->
-        <activity
-            android:name=".presentation.iptv.player.PlayerActivity"
-            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
-            android:exported="false"
-            android:launchMode="singleTop"
-            android:screenOrientation="landscape"
-            android:theme="@style/Theme.MerlotTV.Player" />
-
-        <!-- VOD player shares the same activity with a different nav arg -->
-        <activity
-            android:name=".presentation.vod.player.VodPlayerActivity"
-            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
-            android:exported="false"
-            android:launchMode="singleTop"
-            android:screenOrientation="landscape"
-            android:theme="@style/Theme.MerlotTV.Player" />
-
-        <!-- ═══════════════════════════════════════════════════════
-             BACKGROUND PLAYBACK SERVICE
-        ═══════════════════════════════════════════════════════════ -->
-        <service
-            android:name=".service.PlaybackService"
-            android:exported="true"
-            android:foregroundServiceType="mediaPlayback">
-            <intent-filter>
-                <action android:name="androidx.media3.session.MediaSessionService" />
-                <action android:name="android.media.browse.MediaBrowserService" />
-            </intent-filter>
-        </service>
-
-        <!-- ═══════════════════════════════════════════════════════
-             BACKGROUND WORKERS (EPG refresh, channel checker)
-        ═══════════════════════════════════════════════════════════ -->
+        <!-- FileProvider for APK install (self-update) -->
         <provider
-            android:name="androidx.startup.InitializationProvider"
-            android:authorities="${applicationId}.androidx-startup"
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
             android:exported="false"
-            tools:node="merge">
+            android:grantUriPermissions="true">
             <meta-data
-                android:name="androidx.work.impl.WorkManagerInitializer"
-                android:value="androidx.startup"
-                tools:node="remove" />
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_provider_paths" />
         </provider>
-
-        <!-- Network security: allow HTTP streams (IPTV rarely uses HTTPS) -->
-        <meta-data
-            android:name="android.webkit.WebView.MetricsOptOut"
-            android:value="true" />
 
     </application>
 

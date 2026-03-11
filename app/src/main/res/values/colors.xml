@@ -1,29 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Brand -->
-    <color name="merlot_primary">#722F37</color>       <!-- deep Merlot red -->
-    <color name="merlot_primary_dark">#4A1E24</color>
-    <color name="merlot_accent">#C0392B</color>        <!-- bright red accent -->
-    <color name="merlot_gold">#C9A84C</color>          <!-- luxury gold for highlights -->
 
-    <!-- Background -->
-    <color name="background_dark">#0D0D0D</color>
-    <color name="background_card">#1A1A1A</color>
-    <color name="background_surface">#222222</color>
-    <color name="background_overlay">#99000000</color>
+    <!-- Brand -->
+    <color name="merlot_primary">#C0294F</color>
+    <color name="merlot_primary_dark">#1A0008</color>
+    <color name="merlot_gold">#FFD4A0</color>
+
+    <!-- Core palette (matches HTML CSS variables) -->
+    <color name="bg">#0a0a0f</color>
+    <color name="surface">#111118</color>
+    <color name="surface2">#1a1a24</color>
+    <color name="border">#2a2a3a</color>
+    <color name="accent">#00e5ff</color>
+    <color name="accent3">#7c3aed</color>
+    <color name="hover">#1e1e2e</color>
 
     <!-- Text -->
-    <color name="text_primary">#FFFFFFFF</color>
-    <color name="text_secondary">#AAFFFFFF</color>
-    <color name="text_hint">#66FFFFFF</color>
+    <color name="text_primary">#e8e8f0</color>
+    <color name="text_secondary">#6b6b80</color>
+    <color name="text_hint">#44FFFFFF</color>
 
-    <!-- Status indicators (Channel Checker) -->
-    <color name="status_online">#27AE60</color>
-    <color name="status_offline">#E74C3C</color>
-    <color name="status_timeout">#F39C12</color>
-    <color name="status_pending">#95A5A6</color>
+    <!-- Status indicators -->
+    <color name="status_success">#00d68f</color>
+    <color name="status_danger">#ff4757</color>
+    <color name="status_warn">#f59e0b</color>
+    <color name="status_online">#00d68f</color>
+    <color name="status_offline">#ff4757</color>
+    <color name="status_timeout">#f59e0b</color>
+    <color name="status_pending">#6b6b80</color>
 
-    <!-- Focused / selected state -->
-    <color name="focus_highlight">#722F37</color>
+    <!-- Legacy compat (referenced in existing layouts) -->
+    <color name="merlot_accent">#00e5ff</color>
+    <color name="background_dark">#0a0a0f</color>
+    <color name="background_card">#1a1a24</color>
+    <color name="background_surface">#111118</color>
+    <color name="background_overlay">#99000000</color>
+    <color name="focus_highlight">#00e5ff</color>
     <color name="focus_text">#FFFFFFFF</color>
 </resources>

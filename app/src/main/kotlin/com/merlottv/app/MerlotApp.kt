@@ -1,6 +1,7 @@
 package com.merlottv.app
 
 import android.app.Application
+import android.webkit.WebView
 import androidx.work.Configuration
 import androidx.work.WorkManager
 import coil.ImageLoader
@@ -25,6 +26,14 @@ class MerlotApp : Application(), ImageLoaderFactory, Configuration.Provider {
 
     @Inject lateinit var okHttpClient: OkHttpClient
     @Inject lateinit var workConfiguration: Configuration
+
+    override fun onCreate() {
+        super.onCreate()
+        // Enable WebView debugging in debug builds
+        if (BuildConfig.DEBUG) {
+            WebView.setWebContentsDebuggingEnabled(true)
+        }
+    }
 
     override fun newImageLoader(): ImageLoader =
         ImageLoader.Builder(this)

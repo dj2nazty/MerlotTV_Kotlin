@@ -25,7 +25,10 @@ class HomeFragment : BrowseSupportFragment() {
 
     private val viewModel: HomeViewModel by viewModels()
     private lateinit var rowsAdapter: ArrayObjectAdapter
-    private val cardPresenter by lazy { CardPresenter(requireContext()) }
+
+    private val channelPresenter by lazy { CardPresenter(requireContext()) }
+    private val vodPresenter     by lazy { CardPresenter(requireContext()) }
+    private val sectionPresenter by lazy { CardPresenter(requireContext()) }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -35,7 +38,7 @@ class HomeFragment : BrowseSupportFragment() {
     }
 
     private fun setupBrowseFragment() {
-        title        = getString(R.string.app_name)
+        title = getString(R.string.app_name)
         headersState = HEADERS_ENABLED
         isHeadersTransitionOnBackEnabled = true
         brandColor = ContextCompat.getColor(requireContext(), R.color.merlot_primary)
@@ -47,8 +50,8 @@ class HomeFragment : BrowseSupportFragment() {
 
         setOnItemViewClickedListener { _, item, _, _ ->
             when (item) {
-                is Channel   -> PlayerActivity.start(requireContext(), item)
-                is VodItem   -> findNavController().navigate(R.id.action_home_to_guide)
+                is Channel     -> PlayerActivity.start(requireContext(), item)
+                is VodItem     -> findNavController().navigate(R.id.action_home_to_guide)
                 is SectionItem -> when (item.id) {
                     SectionItem.ID_TV_GUIDE        -> findNavController().navigate(R.id.action_home_to_guide)
                     SectionItem.ID_CHANNEL_CHECKER -> findNavController().navigate(R.id.action_home_to_checker)
@@ -60,63 +63,100 @@ class HomeFragment : BrowseSupportFragment() {
 
     private fun setupRowsAdapter() {
         rowsAdapter = ArrayObjectAdapter(ListRowPresenter())
-        adapter     = rowsAdapter
+        adapter = rowsAdapter
     }
 
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                launch { viewModel.channelGroups.collect { groups -> buildChannelRows(groups) } }
-                launch { viewModel.vodMovies.collect    { movies  -> buildVodRow(movies)       } }
-                launch { viewModel.favourites.collect   { favs    -> buildFavouritesRow(favs)  } }
+
+                launch {
+                    viewModel.channelGroups.collect { groups ->
+                        rebuildChannelRows(groups)
+                    }
+                }
+
+                launch {
+                    viewModel.vodMovies.collect { movies ->
+                        if (movies.isNotEmpty()) upsertVodRow(ROW_ID_VOD_MOVIES, "🎬  Movies", movies)
+                    }
+                }
+
+                launch {
+                    viewModel.vodSeries.collect { series ->
+                        if (series.isNotEmpty()) upsertVodRow(ROW_ID_VOD_SERIES, "📺  Series", series)
+                    }
+                }
+
+                launch {
+                    viewModel.favourites.collect { favs ->
+                        if (favs.isNotEmpty()) upsertChannelRow(ROW_ID_FAVS, "⭐  Favourites", favs)
+                    }
+                }
             }
         }
     }
 
-    private fun buildChannelRows(groups: List<Pair<String, List<Channel>>>) {
-        val existingChannelRowCount = (0 until rowsAdapter.size()).count { i ->
-            (rowsAdapter.get(i) as? ListRow)?.headerItem?.id?.let { it < 1000L } ?: false
-        }
-        repeat(existingChannelRowCount) { rowsAdapter.removeItems(0, 1) }
+    // ── Channel rows ──────────────────────────────────────────────────────────
 
-        var insertPos = 0
+    private fun rebuildChannelRows(groups: List<Pair<String, List<Channel>>>) {
+        // Remove all old channel rows (IDs below 1000)
+        val toRemove = (0 until rowsAdapter.size())
+            .mapNotNull { rowsAdapter.get(it) as? ListRow }
+            .filter { it.headerItem.id < 1000L }
+        toRemove.forEach { rowsAdapter.remove(it) }
+
+        // Re-insert at the top
+        var pos = 0
         groups.take(10).forEach { (groupName, channels) ->
-            val itemAdapter = ArrayObjectAdapter(cardPresenter)
-            channels.forEach { itemAdapter.add(it) }
-            rowsAdapter.add(insertPos++, ListRow(HeaderItem(insertPos.toLong(), groupName), itemAdapter))
+            val items = ArrayObjectAdapter(channelPresenter)
+            channels.forEach { items.add(it) }
+            rowsAdapter.add(pos++, ListRow(HeaderItem(pos.toLong(), "$groupName (${channels.size})"), items))
         }
+
         ensureStaticRows()
     }
 
-    private fun buildVodRow(movies: List<VodItem>) {
-        val existing    = findRowById(ROW_ID_VOD)
-        val itemAdapter = (existing?.adapter as? ArrayObjectAdapter) ?: ArrayObjectAdapter(cardPresenter)
-        if (existing == null) {
-            movies.forEach { itemAdapter.add(it) }
-            rowsAdapter.add(ListRow(HeaderItem(ROW_ID_VOD, getString(R.string.nav_vod)), itemAdapter))
+    private fun upsertChannelRow(rowId: Long, label: String, channels: List<Channel>) {
+        val existing = findRowById(rowId)
+        if (existing != null) {
+            val items = existing.adapter as ArrayObjectAdapter
+            items.clear()
+            channels.forEach { items.add(it) }
+        } else {
+            val items = ArrayObjectAdapter(channelPresenter)
+            channels.forEach { items.add(it) }
+            rowsAdapter.add(ListRow(HeaderItem(rowId, label), items))
         }
     }
 
-    private fun buildFavouritesRow(favs: List<Channel>) {
-        if (favs.isEmpty()) return
-        val existing    = findRowById(ROW_ID_FAVS)
-        val itemAdapter = (existing?.adapter as? ArrayObjectAdapter) ?: ArrayObjectAdapter(cardPresenter)
-        if (existing == null) {
-            favs.forEach { itemAdapter.add(it) }
-            rowsAdapter.add(ListRow(HeaderItem(ROW_ID_FAVS, getString(R.string.nav_favourites)), itemAdapter))
+    // ── VOD rows ──────────────────────────────────────────────────────────────
+
+    private fun upsertVodRow(rowId: Long, label: String, vodItems: List<VodItem>) {
+        val existing = findRowById(rowId)
+        if (existing != null) {
+            val items = existing.adapter as ArrayObjectAdapter
+            items.clear()
+            vodItems.forEach { items.add(it) }
+        } else {
+            val items = ArrayObjectAdapter(vodPresenter)
+            vodItems.forEach { items.add(it) }
+            rowsAdapter.add(ListRow(HeaderItem(rowId, label), items))
         }
     }
+
+    // ── Static shortcut rows ──────────────────────────────────────────────────
 
     private fun ensureStaticRows() {
         listOf(
-            ROW_ID_GUIDE    to R.string.nav_guide,
-            ROW_ID_CHECKER  to R.string.nav_checker,
-            ROW_ID_SETTINGS to R.string.nav_settings,
-        ).forEach { (rowId, labelRes) ->
+            ROW_ID_GUIDE    to "📅  TV Guide",
+            ROW_ID_CHECKER  to "✅  Channel Checker",
+            ROW_ID_SETTINGS to "⚙️  Settings",
+        ).forEach { (rowId, label) ->
             if (findRowById(rowId) == null) {
-                val items = ArrayObjectAdapter(cardPresenter)
-                items.add(SectionItem(rowId.toInt(), getString(labelRes)))
-                rowsAdapter.add(ListRow(HeaderItem(rowId, getString(labelRes)), items))
+                val items = ArrayObjectAdapter(sectionPresenter)
+                items.add(SectionItem(rowId.toInt(), label.substringAfter("  ")))
+                rowsAdapter.add(ListRow(HeaderItem(rowId, label), items))
             }
         }
     }
@@ -130,10 +170,11 @@ class HomeFragment : BrowseSupportFragment() {
     }
 
     companion object {
-        private const val ROW_ID_VOD      = 9000L
-        private const val ROW_ID_FAVS     = 9001L
-        private const val ROW_ID_GUIDE    = 9002L
-        private const val ROW_ID_CHECKER  = 9003L
-        private const val ROW_ID_SETTINGS = 9004L
+        private const val ROW_ID_FAVS       = 9001L
+        private const val ROW_ID_VOD_MOVIES = 9010L
+        private const val ROW_ID_VOD_SERIES = 9011L
+        private const val ROW_ID_GUIDE      = 9002L
+        private const val ROW_ID_CHECKER    = 9003L
+        private const val ROW_ID_SETTINGS   = 9004L
     }
 }
