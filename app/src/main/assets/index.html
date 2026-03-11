@@ -2166,6 +2166,17 @@ function vsRender(){
 //  PLAYBACK
 // ═══════════════════════════════════════════
 function playCh(idx){
+  // If VOD is playing or loading, stop it first before switching to Live TV
+  if(_vodControlsActive){
+    stopVOD();
+    if(window._appFullscreen && typeof exitAppFullscreen === 'function') exitAppFullscreen();
+  }
+  if(window._vodIsLoading){
+    window._vodIsLoading = false;
+    destroyPlayers();
+    var plo = document.getElementById('posterLoadOverlay');
+    if(plo) plo.style.display = 'none';
+  }
   const c=ch[idx];if(!c)return;
   currentIdx=idx;currentUrl=c.url;
   // Save last played channel for auto-resume on next launch
@@ -2953,10 +2964,15 @@ try{ var _tbk=localStorage.getItem('torbox_key'); torboxApiKey=_tbk||TORBOX_DEFA
 // ═══════════════════════════════════════
 function resumeLastChannel(){
   try{
-    // Don't auto-play Live TV if VOD is active, loading, or detail screen is open
+    // Don't auto-play Live TV if VOD is active, loading, or user is browsing VOD
     if(_vodControlsActive || window._vodIsLoading) return;
     var vodDetailEl = document.getElementById('vodDetail');
     if(vodDetailEl && vodDetailEl.style.display !== 'none' && vodDetailEl.style.display !== '') return;
+    var posterOv = document.getElementById('posterLoadOverlay');
+    if(posterOv && posterOv.style.display !== 'none') return;
+    // Don't auto-play if user is on VOD tab
+    var activePanel = document.querySelector('.main-panel.act');
+    if(activePanel && activePanel.id === 'panel-vod') return;
     var enabled = localStorage.getItem('merlot_resume_last');
     if(enabled === 'false') return; // disabled by user (default=enabled)
     var data = localStorage.getItem('merlot_last_channel');
@@ -3943,6 +3959,8 @@ async function searchVOD(){
 async function openVODItem(id, type, name){
   window._lastVODId = id; window._lastVODType = type;
   window._vodIsLoading = true; // Prevent resumeLastChannel from killing VOD
+  // Stop any Live TV playback immediately so it can't interfere with VOD
+  destroyPlayers();
   var modal    = document.getElementById('streamModal');
   var smTitle  = document.getElementById('smTitle');
   var smMeta   = document.getElementById('smMeta');
@@ -5579,11 +5597,16 @@ function exitAppFullscreen(){
       (document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document);
       return;
     }
-    // 3. Close poster overlay & cancel VOD transition
+    // 3. Close poster overlay & cancel VOD transition — also stop any playback
     var plo = document.getElementById('posterLoadOverlay');
     if(plo && plo.style.display!=='none'){
       if(window._vodTransitionTimer) clearTimeout(window._vodTransitionTimer);
       if(typeof hidePosterOverlay==='function') hidePosterOverlay();
+      window._vodIsLoading = false;
+      destroyPlayers();
+      // Show idle screen since we cancelled VOD
+      var idleOv = document.getElementById('idleOv');
+      if(idleOv) idleOv.classList.remove('hidden');
       return;
     }
     // 4. Close VOD detail screen
@@ -5661,7 +5684,17 @@ function exitAppFullscreen(){
         vodPlayPause();
         return;
       }
+      // VOD is loading (poster overlay visible) — ignore OK to prevent accidental Live TV start
+      if(window._vodIsLoading){
+        e.preventDefault();
+        return;
+      }
       var isChItem = cur && cur.classList.contains('ch-item');
+      // Don't let channel clicks kill active VOD playback
+      if(isChItem && (_vodControlsActive || window._vodIsLoading)){
+        e.preventDefault();
+        return;
+      }
       activate();
       // Enter app fullscreen on OK for channel items (Live TV)
       if(isChItem){
