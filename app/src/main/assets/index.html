@@ -843,7 +843,7 @@ video::-webkit-media-controls-start-playback-button{display:none!important}
       <!-- PLAYER -->
       <div class="main-panel act" id="panel-player">
         <div class="pw" id="pw">
-          <video id="vid" playsinline autoplay></video>
+          <video id="vid" playsinline></video>
           <div class="vov idle" id="idleOv">
             <div style="width:80px;height:80px;border-radius:18px;overflow:hidden;margin-bottom:8px;box-shadow:0 8px 36px rgba(192,41,79,.35)"><svg width="80" height="80" viewBox="0 0 512 512"><use href="#ML"/></svg></div>
             <div class="idle-t" style="font-size:18px;font-weight:900;letter-spacing:2px;color:#FFD4A0">MERLOT TV</div>
@@ -2233,17 +2233,14 @@ function useHls(url,vid){
   if(hlsInst){try{hlsInst.destroy();}catch(e){}hlsInst=null;}
   hlsInst=new Hls({
     enableWorker:true,
-    lowLatencyMode:true,
-    backBufferLength:10,
-    maxBufferLength:10,
-    maxMaxBufferLength:20,
-    liveSyncDurationCount:2,
-    liveMaxLatencyDurationCount:5,
-    startFragPrefetch:true,
+    lowLatencyMode:false,
+    backBufferLength:30,
+    maxBufferLength:30,
+    maxMaxBufferLength:60,
+    liveSyncDurationCount:3,
+    liveMaxLatencyDurationCount:8,
     maxBufferHole:0.5,
-    nudgeMaxRetry:5,
-    startLevel:-1,
-    testBandwidth:false
+    startFragPrefetch:true
   });
   hlsInst.attachMedia(vid);
   hlsInst.on(Hls.Events.MANIFEST_PARSED,()=>{hideLoading();vid.play().catch(()=>{});});
@@ -2956,6 +2953,10 @@ try{ var _tbk=localStorage.getItem('torbox_key'); torboxApiKey=_tbk||TORBOX_DEFA
 // ═══════════════════════════════════════
 function resumeLastChannel(){
   try{
+    // Don't auto-play Live TV if VOD is active, loading, or detail screen is open
+    if(_vodControlsActive || window._vodIsLoading) return;
+    var vodDetailEl = document.getElementById('vodDetail');
+    if(vodDetailEl && vodDetailEl.style.display !== 'none' && vodDetailEl.style.display !== '') return;
     var enabled = localStorage.getItem('merlot_resume_last');
     if(enabled === 'false') return; // disabled by user (default=enabled)
     var data = localStorage.getItem('merlot_last_channel');
@@ -3339,13 +3340,12 @@ async function playViaStream(idx){
     startStreamVOD(playUrl);
     // Start the 5-second cinematic timer + auto-fullscreen
     waitAndGoFullscreen();
-    toast(name, 's');
 
   }catch(e){
     hidePosterOverlay();
+    window._vodIsLoading = false; // Allow Live TV resume on error
     smStreams.querySelectorAll('.stream-item').forEach(function(r){ r.style.opacity='1'; r.style.pointerEvents='auto'; });
     setS('Error: ' + e.message);
-    toast('Stream error','e');
     console.error('[Stream]', e);
   }
 }
@@ -3942,6 +3942,7 @@ async function searchVOD(){
 // ── Open item → show stream modal ──
 async function openVODItem(id, type, name){
   window._lastVODId = id; window._lastVODType = type;
+  window._vodIsLoading = true; // Prevent resumeLastChannel from killing VOD
   var modal    = document.getElementById('streamModal');
   var smTitle  = document.getElementById('smTitle');
   var smMeta   = document.getElementById('smMeta');
@@ -3959,7 +3960,6 @@ async function openVODItem(id, type, name){
   smStreams.innerHTML = '';
 
   if(type !== 'series'){
-    toast('⏳ Finding best stream...', 'i');
     modal.style.display = 'none';
     // Show poster overlay immediately (no poster yet — will update when meta arrives)
     showPosterOverlay(name, null);
@@ -4937,6 +4937,7 @@ function stopVOD(){
   hideVODControls();
   hideErr();
   hideLoading();
+  window._vodIsLoading = false; // Allow Live TV to resume again
   // Show idle screen
   var idle = document.getElementById('idleOv');
   if(idle){ idle.classList.remove('hidden'); }
