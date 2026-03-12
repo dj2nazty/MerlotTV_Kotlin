@@ -373,9 +373,6 @@ video::-webkit-media-controls-start-playback-button{display:none!important}
 .vod-stab{padding:8px 16px;border:none;background:none;color:var(--muted);font-family:'Syne',sans-serif;font-size:11px;font-weight:700;cursor:pointer;border-bottom:2px solid transparent;transition:color .18s,border-color .18s}
 .vod-stab:hover{color:var(--text)}
 .vod-stab.act{color:var(--accent);border-bottom-color:var(--accent)}
-.vod-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer;transition:border-color .18s}
-.vod-card:hover{border-color:var(--accent)}
-.vod-card img{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:var(--surface)}
 .vod-card-title{padding:7px 8px;font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .vod-card-meta{padding:0 8px 7px;font-size:10px;color:var(--muted)}
 .epg-item{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:7px;font-size:11px}
@@ -452,17 +449,17 @@ video::-webkit-media-controls-start-playback-button{display:none!important}
 .home-row-loading{display:flex;align-items:center;gap:8px;padding:20px 16px;color:var(--muted);font-size:11px}
 .home-row-err{padding:14px 16px;color:var(--muted);font-size:11px;font-style:italic}
 .home-divider{height:1px;background:var(--border);margin:4px 16px;flex-shrink:0}
-.vod-grid{flex:1;overflow-y:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;align-content:start;contain:layout style}
+.vod-grid{flex:1;overflow-y:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;align-content:start}
 .vod-grid::-webkit-scrollbar{width:4px}
 .vod-grid::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 .vod-empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--muted);font-size:12px;line-height:1.8;padding:60px 20px;gap:4px}
-.vod-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer;transition:border-color .18s;position:relative}
-.vod-card:hover{border-color:var(--accent)}
-.vod-card img{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:var(--surface)}
-.vod-card-body{padding:5px 6px 6px}
+.vod-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .18s,transform .18s,box-shadow .18s;position:relative}
+.vod-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.vod-card img{width:100%;display:block;object-fit:cover;background:var(--surface);border-radius:8px 8px 0 0}
+.vod-card-placeholder{width:100%;background:var(--surface);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:28px;border-radius:8px 8px 0 0}
+.vod-card-body{padding:6px 7px 7px}
 .vod-card-title{font-size:10px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
-.vod-card-meta{font-size:9px;color:var(--muted);margin-top:1px}
-.vod-card-ph,.vod-card-placeholder{width:100%;aspect-ratio:2/3;background:var(--surface);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:28px}
+.vod-card-meta{font-size:9px;color:var(--muted);margin-top:2px}
 
 /* ══ Stream Modal ══ */
 .stream-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;display:flex;align-items:center;justify-content:center}
@@ -769,9 +766,19 @@ video::-webkit-media-controls-start-playback-button{display:none!important}
   transform: translateY(-4px) scale(1.04) !important;
   box-shadow: 0 0 0 5px rgba(0,229,255,.3) !important;
 }
+.home-card.tv-focus {
+  outline: 3px solid var(--accent) !important;
+  transform: translateY(-4px) scale(1.04) !important;
+  box-shadow: 0 0 0 5px rgba(0,229,255,.3) !important;
+}
 .guide-ch-item.tv-focus {
   background: rgba(0,229,255,.15) !important;
   box-shadow: inset 0 0 0 2px var(--accent) !important;
+}
+.st-input.tv-focus {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+  border-radius: 7px;
 }
 </style>
 </head>
@@ -4000,7 +4007,7 @@ async function searchVOD(){
     if(!metas.length){
       grid.innerHTML = '<div class="vod-empty"><p>No results'
         +(query?' for "'+x(query)+'"':_activeGenre?' in '+_esc(_activeGenre):'')+
-        '.</p><button class="ibtn ibtn-s" setGenre(\'\')earchVOD()" style="margin-top:10px">Clear filter</button></div>';
+        '.</p><button class="ibtn ibtn-s" onclick="setGenre(\'\');searchVOD()" style="margin-top:10px">Clear filter</button></div>';
       return;
     }
 
@@ -4008,9 +4015,9 @@ async function searchVOD(){
       var safeId   = String(m.id   || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
       var safeName = String(m.name || 'Unknown').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
       var rating   = m.imdbRating ? '<span style="color:#f5c518">&#9733;'+m.imdbRating+'</span>' : '';
-      var img      = m.poster
-        ? '<img src="'+x(m.poster)+'" loading="lazy" onerror="this.className=\'vod-card-ph\';this.outerHTML=\'&#127916;\'">'
-        : '<div class="vod-card-placeholder">&#127916;</div>';
+      var img = m.poster
+        ? '<img src="'+x(m.poster)+'" width="140" height="210" loading="lazy" onerror="this.outerHTML=\'<div class=vod-card-placeholder style=height:210px>&#127916;</div>\'">'
+        : '<div class="vod-card-placeholder" style="height:210px">&#127916;</div>';
       _cacheVodMeta(m, type);
       var isFav    = _favorites.some(function(f){ return f.id===m.id && f.type===type; });
       var heartBtn = '<button onclick="event.stopPropagation();toggleFavById(\''+safeId+'\',\''+type+'\')" '
@@ -5179,9 +5186,9 @@ function renderFavorites(){
     var safeId   = (m.id||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     var safeName = (m.name||'Unknown').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     var rating   = m.imdbRating ? '<span style="color:#f5c518">&#9733;'+m.imdbRating+'</span>' : '';
-    var img      = m.poster
-      ? '<img src="'+x(m.poster)+'" loading="lazy" onerror="this.className=\'vod-card-placeholder\';this.outerHTML=\'&#127916;\'">'
-      : '<div class="vod-card-placeholder">&#127916;</div>';
+    var img = m.poster
+      ? '<img src="'+x(m.poster)+'" width="140" height="210" loading="lazy" onerror="this.outerHTML=\'<div class=vod-card-placeholder style=height:210px>&#127916;</div>\'">'
+      : '<div class="vod-card-placeholder" style="height:210px">&#127916;</div>';
     var typeLabel = m.type === 'series'
       ? '<span style="background:rgba(126,184,247,.18);color:#7eb8f7;font-size:8px;font-weight:800;border-radius:3px;padding:1px 5px">SERIES</span>'
       : '<span style="background:rgba(192,41,79,.18);color:var(--accent);font-size:8px;font-weight:800;border-radius:3px;padding:1px 5px">MOVIE</span>';
@@ -5451,7 +5458,7 @@ function exitAppFullscreen(){
     '.vd-play-btn','.vd-fav-btn','.vd-season-btn','.vd-ep-item','.vd-ep-play',
     '.stream-item','.vd-close-btn','.home-card',
     '.st-tab','.st-btn','.toggle-switch',
-    '.si','select.gs'
+    '.si','.st-input','select.gs'
   ].join(',');
 
   var CSS_FOCUS = 'tv-focus';
@@ -5526,16 +5533,19 @@ function exitAppFullscreen(){
       return false;
     });
     if(!valid.length) return null;
-    // Score: primary axis distance + small penalty for off-axis
+    // Score: primary axis distance + penalty for off-axis drift.
+    // Higher secondary weight (0.8) prevents diagonal "spiking" in grids.
+    // Elements on the same row/column are strongly preferred.
+    var SEC_W = 0.8;
     return valid.reduce(function(best, el){
       var ex=cx(el), ey=cy(el);
       var primary = (dir==='up'||dir==='down') ? Math.abs(ey-fy) : Math.abs(ex-fx);
       var secondary = (dir==='up'||dir==='down') ? Math.abs(ex-fx) : Math.abs(ey-fy);
-      var score = primary + secondary*0.3;
+      var score = primary + secondary*SEC_W;
       var bestEx=cx(best), bestEy=cy(best);
       var bp = (dir==='up'||dir==='down') ? Math.abs(bestEy-fy) : Math.abs(bestEx-fx);
       var bs = (dir==='up'||dir==='down') ? Math.abs(bestEx-fx) : Math.abs(bestEy-fy);
-      return score < bp+bs*0.3 ? el : best;
+      return score < bp+bs*SEC_W ? el : best;
     });
   }
 
@@ -5822,6 +5832,26 @@ function exitAppFullscreen(){
   }, true);
 
   window._tvNav = { setFocus: setFocus, all: all };
+
+  // ── Notify Android when text inputs gain/lose focus ──────
+  // This lets dispatchKeyEvent pass key events through natively
+  // so the soft keyboard (IME) can open and typing works.
+  document.addEventListener('focus', function(e){
+    var tag = e.target && e.target.tagName;
+    if(tag === 'INPUT' || tag === 'TEXTAREA'){
+      if(window.AndroidBridge && AndroidBridge.setInputFocused){
+        AndroidBridge.setInputFocused(true);
+      }
+    }
+  }, true);
+  document.addEventListener('blur', function(e){
+    var tag = e.target && e.target.tagName;
+    if(tag === 'INPUT' || tag === 'TEXTAREA'){
+      if(window.AndroidBridge && AndroidBridge.setInputFocused){
+        AndroidBridge.setInputFocused(false);
+      }
+    }
+  }, true);
 })();
 </script>
 </body>

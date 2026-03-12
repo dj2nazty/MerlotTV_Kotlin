@@ -76,6 +76,10 @@ class MainActivity : FragmentActivity() {
     private var crashCount = 0
     private var lastCrashTime = 0L
 
+    // Track whether a text input is focused in the WebView (updated from JS)
+    @Volatile
+    private var isWebViewInputFocused = false
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -93,12 +97,24 @@ class MainActivity : FragmentActivity() {
         webView.loadUrl("file:///android_asset/index.html")
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // Allow JS evaluation from ADB for debugging:
+        // adb shell am start -n com.merlottv.app/.presentation.main.MainActivity --es evalJs "alert('hi')"
+        intent.getStringExtra("evalJs")?.let { js ->
+            runOnUiThread { safeEvaluateJs(js) }
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     //  WebView setup
     // ═══════════════════════════════════════════════════════════════════════
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView() {
+        // Enable remote debugging via chrome://inspect
+        WebView.setWebContentsDebuggingEnabled(true)
+
         val settings = webView.settings
 
         // JavaScript & storage — required for the app to function
@@ -335,6 +351,11 @@ class MainActivity : FragmentActivity() {
         @JavascriptInterface
         fun isAndroid(): Boolean = true
 
+        @JavascriptInterface
+        fun setInputFocused(focused: Boolean) {
+            isWebViewInputFocused = focused
+        }
+
         /**
          * Download an APK from the given URL and launch the system installer.
          * Called from JavaScript when user accepts an update.
@@ -491,6 +512,26 @@ class MainActivity : FragmentActivity() {
             }
             // Consume both ACTION_DOWN and ACTION_UP
             return true
+        }
+
+        // ── Check if a text input is focused in the WebView ─────────────
+        // If so, let Enter/DPAD_CENTER pass through natively so the soft
+        // keyboard (IME) can open. Also let all keys pass through so the
+        // user can actually type in the input field.
+        if (isWebViewInputFocused) {
+            val isEnter = keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
+                    keyCode == KeyEvent.KEYCODE_ENTER ||
+                    keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER
+            // For D-pad navigation keys while input is focused, still handle via JS
+            // so user can navigate away from the input
+            val isDpad = keyCode == KeyEvent.KEYCODE_DPAD_UP ||
+                    keyCode == KeyEvent.KEYCODE_DPAD_DOWN ||
+                    keyCode == KeyEvent.KEYCODE_DPAD_LEFT ||
+                    keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+            if (!isDpad) {
+                // Let the native WebView handle it (typing, Enter to submit, etc.)
+                return super.dispatchKeyEvent(event)
+            }
         }
 
         // ── All other mapped keys ────────────────────────────────────────
